@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Voice Training v2 — Variable Clip Length</title>
+<script src="./offline_libs/js/tf.min.js"></script>
+<script src="./offline_libs/js/speech-commands.min.js"></script>
+<script src="./offline_libs/js/jszip.min.js"></script>
+<style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #fff; padding: 12px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06); flex-shrink: 0;
+        }
+        .back-btn { padding: 8px 14px; background: #f1f5f9; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569; }
+        .back-btn:hover { background: #e2e8f0; }
+        .header h1 { font-size: 18px; font-weight: 700; color: #1e293b; }
+        .header-badge { font-size: 11px; font-weight: 700;
+            background: linear-gradient(135deg, #7c3aed, #06b6d4);
+            color: #fff; padding: 3px 10px; border-radius: 10px; margin-left: 8px; }
+        .deploy-btn { padding: 8px 16px; background: #f54254; color: #fff; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; transition: opacity .2s; }
+        .deploy-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .deploy-btn:not(:disabled):hover { opacity: .85; }
+        .reset-btn { padding: 8px 14px; background: #fef3c7; border: 1.5px solid #fcd34d;
+            border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+            color: #92400e; transition: background .15s; }
+        .reset-btn:hover { background: #fde68a; }
+
+        .status-bar { background: #f1f5f9; padding: 6px 20px; font-size: 13px;
+            color: #475569; min-height: 30px; flex-shrink: 0; }
+
+        .columns { display: flex; flex-direction: row; gap: 16px; padding: 16px;
+            overflow-x: auto; overflow-y: hidden; flex: 1; align-items: stretch; }
+        .col { width: 340px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; max-height: 100%; }
+        .col::-webkit-scrollbar { width: 3px; }
+        .col::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+        .col-title { font-size: 15px; font-weight: 700; color: #374151; margin-bottom: 12px; }
+        .arrow { display: flex; align-items: flex-start; padding-top: 180px;
+            font-size: 28px; color: #cbd5e1; flex-shrink: 0; align-self: flex-start; }
+
+        .clip-size-bar {
+            background: #fff; border-radius: 12px; padding: 12px 14px;
+            margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        }
+        .clip-size-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+        .clip-len-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+        .cl-btn {
+            padding: 8px 4px; background: #f1f5f9; border: 1.5px solid #e2e8f0;
+            color: #64748b; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer; text-align: center; transition: all .15s;
+        }
+        .cl-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+        .cl-btn.active { background: #f5f3ff; border-color: #7c3aed; color: #7c3aed; font-weight: 700; }
+        .cl-hint { font-size: 11px; color: #94a3b8; margin-top: 8px; line-height: 1.6; }
+
+        .model-load-bar {
+            background: #fff; border-radius: 12px; padding: 12px 14px;
+            margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            border-left: 4px solid #7c3aed;
+        }
+        .model-load-title { font-size: 13px; font-weight: 700; color: #374151;
+            margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .model-load-status { font-size: 11px; color: #94a3b8; line-height: 1.5; }
+        .model-load-track { width: 100%; height: 3px; background: #f1f5f9;
+            border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .model-load-fill { height: 100%; background: #7c3aed;
+            border-radius: 2px; transition: width .3s ease; width: 0%; }
+
+        .class-card { background: #fff; border-radius: 12px; padding: 14px;
+            margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            border-left: 4px solid #ccc; }
+        .class-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .class-name { flex: 1; font-size: 15px; font-weight: 700; border: none;
+            border-bottom: 1.5px solid #e2e8f0; outline: none;
+            background: transparent; padding-bottom: 2px; }
+        .sample-count { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+        .remove-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; }
+        .remove-btn:hover { color: #ef4444; }
+
+        .mic-vis-wrap { position: relative; background: #0f172a; border-radius: 8px;
+            height: 72px; overflow: hidden; margin-bottom: 8px; }
+        .mic-vis-canvas { width: 100%; height: 100%; display: block; }
+        .mic-vis-label { position: absolute; top: 6px; left: 10px; font-size: 10px;
+            font-weight: 700; color: #ef4444; text-transform: uppercase;
+            letter-spacing: .08em; display: flex; align-items: center; gap: 5px; }
+        .mic-vis-count { position: absolute; top: 6px; right: 10px;
+            font-size: 10px; font-weight: 700; color: #475569; font-family: monospace; }
+        .rec-progress { position: absolute; bottom: 5px; left: 8px; right: 8px;
+            height: 3px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+        .rec-progress-fill { height: 100%; background: #ef4444; border-radius: 2px;
+            width: 0%; transition: width .05s linear; }
+
+        .add-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+        .add-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid;
+            cursor: pointer; font-size: 13px; font-weight: 600; background: transparent; transition: opacity .15s; }
+        .add-btn:hover { opacity: .75; }
+        .cam-btns { display: flex; gap: 8px; margin-top: 4px; }
+        .hold-btn { flex: 1; padding: 10px; border: none; border-radius: 8px;
+            color: #fff; font-weight: 700; cursor: pointer; font-size: 13px;
+            user-select: none; -webkit-user-select: none; transition: opacity .15s; }
+        .stop-btn { padding: 10px 16px; border: none; border-radius: 8px;
+            background: #f1f5f9; color: #64748b; font-weight: 600; cursor: pointer; }
+        .stop-btn:hover { background: #e2e8f0; }
+
+        .thumbs { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+        .thumb { position: relative; }
+        .thumb canvas { width: 48px; height: 28px; border-radius: 4px; background: #0f172a; display: block; }
+        .thumb-del { position: absolute; top: -4px; right: -4px; width: 15px; height: 15px;
+            background: #ef4444; color: #fff; border: none; border-radius: 50%;
+            cursor: pointer; font-size: 8px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; }
+        .thumb-play { position: absolute; bottom: -4px; right: -4px; width: 15px; height: 15px;
+            background: #3b82f6; color: #fff; border: none; border-radius: 50%;
+            cursor: pointer; font-size: 7px;
+            display: flex; align-items: center; justify-content: center; }
+        .thumb-play:hover { background: #2563eb; }
+        .thumb-play.playing { background: #7c3aed; }
+
+        .class-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .extract-btn-card { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid;
+            font-size: 12px; font-weight: 700; cursor: pointer; background: transparent;
+            transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .extract-btn-card:disabled { opacity: .35; cursor: not-allowed; }
+        .extract-btn-card:not(:disabled):hover { opacity: .75; }
+        .download-btn-card { flex: 1; padding: 8px; border-radius: 8px;
+            border: 1.5px solid #10b981; font-size: 12px; font-weight: 700;
+            cursor: pointer; background: transparent; color: #10b981;
+            transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .download-btn-card:hover { background: #f0fdf4; }
+
+        .noise-badge { font-size: 10px; font-weight: 700; color: #5b21b6;
+            background: #ede9fe; padding: 2px 8px; border-radius: 10px;
+            display: inline-block; margin-bottom: 8px; }
+        .noise-hint { font-size: 11px; color: #5b21b6; background: #f5f3ff;
+            border-radius: 6px; padding: 6px 10px; margin-top: 4px; }
+
+        .add-class-btn { border: 2px dashed #e2e8f0; border-radius: 10px; padding: 14px;
+            text-align: center; color: #94a3b8; cursor: pointer; font-weight: 600;
+            font-size: 14px; background: none; width: 100%; margin-top: 4px; transition: border-color .15s; }
+        .add-class-btn:hover { border-color: #94a3b8; }
+        .add-class-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .add-noise-btn { border: 2px dashed #7c3aed; border-radius: 10px; padding: 10px 14px;
+            text-align: center; color: #5b21b6; cursor: pointer; font-weight: 600;
+            font-size: 13px; background: #f5f3ff; width: 100%; margin-top: 8px; transition: all .15s; }
+        .add-noise-btn:hover { background: #ede9fe; }
+        .add-noise-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+        .tips-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;
+            padding: 10px 14px; margin-top: 12px; font-size: 12px; color: #166534; line-height: 1.7; }
+        .dl-all-btn { width: 100%; margin-top: 10px; padding: 11px;
+            border: 1.5px solid #10b981; border-radius: 8px; background: transparent;
+            color: #10b981; font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 7px; }
+        .dl-all-btn:hover { background: #f0fdf4; }
+
+        .train-card { background: #fff; border-radius: 12px; padding: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .state-ready { text-align: center; padding: 20px 0; }
+        .state-ready .icon { font-size: 36px; margin-bottom: 8px; }
+        .state-ready h3 { font-size: 15px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+        .state-ready p { font-size: 12px; color: #94a3b8; }
+        .state-progress { text-align: center; padding: 20px 0; }
+        .progress-pct { font-size: 32px; font-weight: 800; color: #7c3aed; margin-bottom: 8px; }
+        .progress-bar { width: 100%; height: 6px; background: #f1f5f9; border-radius: 3px;
+            overflow: hidden; margin-bottom: 8px; }
+        .progress-fill { height: 100%; background: #7c3aed; border-radius: 3px; transition: width .2s ease; }
+        .progress-label { font-size: 13px; color: #94a3b8; }
+        .state-done { text-align: center; padding: 16px 0; }
+        .state-done .icon { font-size: 36px; margin-bottom: 8px; }
+        .state-done h3 { font-size: 17px; font-weight: 700; color: #10b981; margin-bottom: 4px; }
+        .state-done p { font-size: 13px; color: #94a3b8; }
+        .retrain-btn { margin-top: 8px; padding: 6px 16px; background: #f1f5f9; border: none;
+            border-radius: 6px; color: #64748b; font-weight: 600; font-size: 13px; cursor: pointer; }
+        .train-btn { width: 100%; padding: 14px; background: #7c3aed; color: #fff;
+            border: none; border-radius: 10px; font-size: 16px; font-weight: 800;
+            cursor: pointer; margin-top: 16px; transition: opacity .2s; }
+        .train-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .train-btn:not(:disabled):hover { opacity: .85; }
+        .stats { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .stat-row { display: flex; align-items: center; gap: 8px; }
+        .stat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .stat-name { flex: 1; font-size: 13px; color: #374151; font-weight: 500; }
+        .stat-count { font-size: 13px; color: #94a3b8; font-weight: 600; }
+
+        .pipeline-box { margin-top: 16px; background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 8px; padding: 12px; }
+        .pipeline-title { font-size: 11px; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+        .pipeline-step { display: flex; align-items: center; gap: 8px;
+            font-size: 11px; color: #64748b; padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-step span:first-child { font-size: 13px; flex-shrink: 0; }
+
+        .embed-info-box { margin-top: 10px; background: #f0fdf4; border: 1px solid #86efac;
+            border-radius: 8px; padding: 10px 12px; font-size: 11px; color: #166534; line-height: 1.6; }
+
+        .preview-card { background: #fff; border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06); overflow: visible; }
+        .preview-header { padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between; }
+        .preview-title { font-size: 14px; font-weight: 700; color: #374151; }
+        .model-badge { font-size: 10px; font-weight: 700;
+            background: linear-gradient(135deg, #7c3aed, #06b6d4);
+            color: #fff; padding: 2px 8px; border-radius: 10px; }
+
+        .preview-vis-wrap { background: #0f172a; height: 80px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .preview-vis-canvas { width: 100%; height: 100%; display: block; }
+        .preview-placeholder { position: absolute; inset: 0; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            color: #334155; font-size: 13px; gap: 6px; }
+        .preview-placeholder .mic-icon { font-size: 28px; }
+
+        .detect-status { padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+            min-height: 56px; display: flex; align-items: center; gap: 10px; transition: all .2s; }
+
+        .output-section { padding: 14px 16px; }
+        .output-title { font-size: 11px; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+        .output-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .output-label { width: 80px; font-size: 13px; font-weight: 700; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+        .output-bar-wrap { flex: 1; height: 28px; background: #f1f5f9;
+            border-radius: 6px; overflow: hidden; position: relative; }
+        .output-bar-fill { height: 100%; border-radius: 6px; display: flex;
+            align-items: center; justify-content: flex-end; padding-right: 8px;
+            min-width: 0; transition: width .12s ease; }
+        .output-bar-pct { font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap; }
+        .output-bar-pct-outside { position: absolute; right: 8px; top: 50%;
+            transform: translateY(-50%); font-size: 12px; font-weight: 700; color: #94a3b8; }
+
+        .threshold-wrap { padding: 10px 16px; background: #fafafa; border-top: 1px solid #f1f5f9; }
+        .threshold-label { display: flex; justify-content: space-between;
+            font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+        .threshold-slider { width: 100%; accent-color: #7c3aed; cursor: pointer; }
+
+        .action-wrap { padding: 12px 16px 16px; }
+        .action-btn { width: 100%; padding: 14px; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 8px;
+            color: #fff; transition: opacity .2s; }
+        .action-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .action-btn:not(:disabled):hover { opacity: .85; }
+        .btn-test        { background: #06b6d4; }
+        .btn-deploy      { background: #7c3aed; }
+        .btn-export      { background: #10b981; }
+        .btn-deploy-k230 { background: #f59e0b; }
+        .btn-export-esp32 { background: #3b82f6; }
+
+        .k230-settings { margin-top: 12px; font-size: 12px; color: #64748b;
+            background: #f8fafc; padding: 10px; border-radius: 8px;
+            border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 7px; }
+        .k230-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .k230-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 6px;
+            font-size: 12px; outline: none; color: #1e293b; font-weight: 600; background: #fff; }
+        .k230-input:focus { border-color: #7c3aed; }
+        .k230-select { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 6px;
+            font-size: 12px; font-weight: 600; color: #1e293b; background: #fff; cursor: pointer; outline: none; }
+
+        .usb-progress-panel { display: none; background: #0f172a; border-radius: 8px;
+            padding: 12px 14px; margin-top: 10px; border: 1px solid #1e293b; }
+        .usb-progress-panel.visible { display: block; }
+        .usb-progress-title { font-size: 11px; font-weight: 700; color: #64748b;
+            text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 6px; }
+        .usb-file-row { margin-bottom: 8px; }
+        .usb-file-label { font-size: 11px; font-weight: 600; color: #94a3b8;
+            margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .usb-file-label span:last-child { color: #f59e0b; font-family: monospace; }
+        .usb-file-bar { width: 100%; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+        .usb-file-fill { height: 100%; border-radius: 3px; transition: width .1s linear; width: 0%; }
+        .usb-log { font-family: 'Courier New', monospace; font-size: 10px; color: #475569;
+            margin-top: 8px; line-height: 1.7; max-height: 60px; overflow-y: auto; }
+        .usb-log .ok   { color: #10b981; }
+        .usb-log .err  { color: #ef4444; }
+        .usb-log .warn { color: #f59e0b; }
+        .usb-log .info { color: #38bdf8; }
+
+        .hint { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 10px; line-height: 1.6; }
+        .spinner { display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+            border-radius: 50%; animation: spin .7s linear infinite;
+            vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pulse-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+            background: #f59e0b; animation: pulseD 1.4s ease infinite; }
+        @keyframes pulseD { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.7)} }
+        .rec-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+            background: #ef4444; animation: recB .6s ease infinite alternate; }
+        @keyframes recB { from{opacity:1} to{opacity:.2} }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <button class="back-btn" onclick="goBack()">&#x2190; Workspace</button>
+    <h1>Voice Training <span class="header-badge">&#x1F3A4; Audio ML v2</span></h1>
+    <div style="display:flex;gap:8px;align-items:center">
+        <button class="reset-btn" onclick="resetAll()">&#x1F504; Reset</button>
+        <button class="deploy-btn" id="deployHeaderBtn" onclick="deployToBlockly()" disabled>
+            Deploy to Blocks &#x2192;
+        </button>
+    </div>
+</div>
+
+<div class="status-bar" id="statusBar">Loading Speech Commands backbone &#x2014; please wait&#x2026;</div>
+
+<div class="columns">
+
+    <!-- Column 1: Collect -->
+    <div class="col">
+        <div class="col-title">1. Collect Audio</div>
+
+        <div class="clip-size-bar">
+            <div class="clip-size-label">&#x1F39A;&#xFE0F; Clip Length</div>
+            <div class="clip-len-grid">
+                <button class="cl-btn" data-ms="1000" onclick="setClipLen(1000)">1.0 s</button>
+                <button class="cl-btn active" data-ms="1500" onclick="setClipLen(1500)">1.5 s</button>
+                <button class="cl-btn" data-ms="2000" onclick="setClipLen(2000)">2.0 s</button>
+                <button class="cl-btn" data-ms="3000" onclick="setClipLen(3000)">3.0 s</button>
+            </div>
+            <div class="cl-hint" id="clipLenHint">
+                Each clip is recorded for <b>1.5 sec</b>, sliced into
+                <b id="nWindows">3</b> overlapping 1-sec windows,
+                each embedded &#x2192; averaged &#x2192; 1 clip vector.
+            </div>
+        </div>
+
+        <div class="model-load-bar" id="modelLoadBar">
+            <div class="model-load-title">
+                <span id="modelLoadIcon">&#x23F3;</span>
+                <span id="modelLoadTitle">Loading pretrained backbone&#x2026;</span>
+            </div>
+            <div class="model-load-status" id="modelLoadStatus">
+                Downloading Speech Commands v2 (~5 MB). Runs once.
+            </div>
+            <div class="model-load-track">
+                <div class="model-load-fill" id="modelLoadFill"></div>
+            </div>
+        </div>
+
+        <div id="classList"></div>
+
+        <button class="add-class-btn" id="addClassBtn" onclick="addClass()" disabled>
+            + Add a Word / Sound
+        </button>
+        <button class="add-noise-btn" id="addNoiseBtn" onclick="addNoiseClass()" disabled>
+            &#x1F507; + Add Background Noise Class (recommended)
+        </button>
+
+        <div class="tips-box">
+            &#x1F4A1; <b>Tips for voice training:</b><br>
+            &#x2022; Speak immediately when you hold the button<br>
+            &#x2022; Longer clips &#x2192; more windows &#x2192; better accuracy<br>
+            &#x2022; 8&#x2013;12 clips per word is enough<br>
+            &#x2022; Always add a Background Noise class<br>
+            &#x2022; Record in the same room you&#x2019;ll use it
+        </div>
+
+        <button class="dl-all-btn" onclick="downloadAllClips()">
+            &#x2B07; Download All Clips (ZIP)
+        </button>
+    </div>
+
+    <div class="arrow">&#x2192;</div>
+
+    <!-- Column 2: Train -->
+    <div class="col">
+        <div class="col-title">2. Train Model</div>
+        <div class="train-card">
+            <div id="trainStateBox">
+                <div class="state-ready">
+                    <div class="icon">&#x1F9E0;</div>
+                    <h3>Ready to train.</h3>
+                    <p>Add at least 5 clips per class<br>then press Train.</p>
+                </div>
+            </div>
+            <button class="train-btn" id="trainBtn" onclick="trainModel()" disabled>
+                Train Model
+            </button>
+            <div class="stats" id="statList"></div>
+
+            <div class="pipeline-box">
+                <div class="pipeline-title">Pipeline</div>
+                <div class="pipeline-step">
+                    <span>&#x1F3A4;</span>
+                    <span>Record <span id="pbClipLen">1.5</span>s via mic</span>
+                </div>
+                <div class="pipeline-step">
+                    <span>&#x2702;&#xFE0F;</span>
+                    <span>Slice &#x2192; <span id="pbWindows">3</span> x 1s windows (50% overlap)</span>
+                </div>
+                <div class="pipeline-step">
+                    <span>&#x1F52C;</span>
+                    <span>Backbone &#x2192; <span id="pbEmbedDim">?</span>-dim embedding per window</span>
+                </div>
+                <div class="pipeline-step">
+                    <span>&#x1F4D0;</span>
+                    <span>Average window embeddings &#x2192; 1 clip vector</span>
+                </div>
+                <div class="pipeline-step">
+                    <span>&#x1F3CB;&#xFE0F;</span>
+                    <span>Train MLP head on clip vectors</span>
+                </div>
+            </div>
+
+            <div class="embed-info-box" id="embedInfoBox" style="display:none">
+                <b>&#x1F52C; Embedding Layer:</b> <span id="embedLayerName">&#x2014;</span><br>
+                <b>&#x1F4D0; Embedding Dim:</b> <span id="embedLayerDim">&#x2014;</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="arrow">&#x2192;</div>
+
+    <!-- Column 3: Preview & Deploy -->
+    <div class="col">
+        <div class="col-title">3. Preview &amp; Deploy</div>
+        <div class="preview-card">
+
+            <div class="preview-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="preview-title">Live Preview</span>
+                    <span class="model-badge">Manual Pipeline</span>
+                </div>
+                <button class="action-btn btn-test" id="micBtn"
+                    onclick="toggleMic()" disabled
+                    style="width:auto;padding:6px 14px;font-size:12px;margin-top:0">
+                    Start Mic
+                </button>
+            </div>
+
+            <div class="preview-vis-wrap">
+                <canvas id="waveCanvas" class="preview-vis-canvas"></canvas>
+                <div class="preview-placeholder" id="wavePlaceholder">
+                    <div class="mic-icon">&#x1F3A4;</div>
+                    <div>Start mic to preview</div>
+                    <div style="font-size:11px;color:#334155">Sliding-window inference every <span id="inferDisplay">500</span>ms</div>
+                </div>
+            </div>
+
+            <div class="detect-status" id="detectStatus">
+                <div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;
+                     display:flex;align-items:center;justify-content:center;
+                     font-size:18px;flex-shrink:0">&#x1F50D;</div>
+                <div>
+                    <div style="font-size:13px;font-weight:700;color:#94a3b8">Not Detected</div>
+                    <div style="font-size:11px;color:#cbd5e1;margin-top:1px">Train model and start mic</div>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <div class="output-title">Output</div>
+                <div id="outputBars"></div>
+            </div>
+
+            <div class="threshold-wrap">
+                <div class="threshold-label">
+                    <span>Detection Threshold</span>
+                    <span id="thresholdValue">80%</span>
+                </div>
+                <input type="range" class="threshold-slider" id="thresholdSlider"
+                    min="50" max="99" value="80" oninput="updateThresh(this.value)"/>
+                <div style="margin-top:8px">
+                    <div class="threshold-label">
+                        <span>Inference Interval</span>
+                        <span id="threshDisplay2">500ms</span>
+                    </div>
+                    <input type="range" class="threshold-slider" style="accent-color:#f59e0b"
+                        min="200" max="1000" value="500" step="100"
+                        oninput="updateInferInterval(this.value)"/>
+                </div>
+            </div>
+
+            <div class="action-wrap">
+                <button class="action-btn btn-deploy" id="deployCardBtn"
+                    onclick="deployToBlockly()" disabled>Deploy to Blockly</button>
+                <button class="action-btn btn-deploy-k230" id="deployK230Btn"
+                    onclick="deployToK230()" disabled>&#x1F680; Deploy to K230</button>
+                <button class="action-btn btn-export" id="exportBtn"
+                    onclick="exportKmodel()" disabled>Export .kmodel (Local)</button>
+                <button class="action-btn btn-export-esp32" id="exportEsp32Btn"
+                    onclick="exportVoiceTflite()" disabled>Export .tflite (ESP32-S3)</button>
+
+                <div class="k230-settings">
+                    <div class="k230-row">
+                        <span>Method:</span>
+                        <select class="k230-select" id="deployMethodInput"
+                            onchange="onDeployMethodChange(this.value)">
+                            <option value="wifi" selected>Wi-Fi</option>
+                            <option value="usb">USB (WebSerial)</option>
+                        </select>
+                    </div>
+                    <div class="k230-row" id="wifiRow">
+                        <span>K230 IP:</span>
+                        <input type="text" class="k230-input" id="k230IpInput"
+                            value="192.168.4.1" style="width:110px">
+                        <span>Port:</span>
+                        <input type="text" class="k230-input" id="k230PortInput"
+                            value="8080" style="width:50px">
+                    </div>
+                    <div class="k230-row" id="usbBaudRow" style="display:none">
+                        <span>Baud:</span>
+                        <select class="k230-select" id="usbBaudSelect">
+                            <option value="115200">115200 &#x2014; safe</option>
+                            <option value="921600" selected>921600 &#x2014; fast</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="usb-progress-panel" id="usbProgressPanel">
+                    <div class="usb-progress-title">
+                        <span class="pulse-dot"></span> USB Transfer
+                    </div>
+                    <div class="usb-file-row">
+                        <div class="usb-file-label">
+                            <span>voice_v2_model.kmodel</span><span id="usbFile1Pct">0%</span>
+                        </div>
+                        <div class="usb-file-bar">
+                            <div class="usb-file-fill" id="usb1Fill" style="background:#f59e0b"></div>
+                        </div>
+                    </div>
+                    <div class="usb-file-row">
+                        <div class="usb-file-label">
+                            <span>voice_v2_labels.txt</span><span id="usbFile2Pct">0%</span>
+                        </div>
+                        <div class="usb-file-bar">
+                            <div class="usb-file-fill" id="usb2Fill" style="background:#38bdf8"></div>
+                        </div>
+                    </div>
+                    <div class="usb-log" id="usbLog"></div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:#64748b;white-space:nowrap;">Backend URL:</span>
+                    <input id="backendUrlInput" type="text" style="width:100%;max-width:320px;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;" title="Local backend server URL" />
+                </div>
+
+                <p class="hint">
+                    <b>Deploy to Blockly</b> adds voice AI blocks.<br>
+                    <b>Deploy to K230</b> pushes model to board.<br>
+                    <b>Export</b> downloads files locally.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+'use strict';
+
+const CONVERT_SERVER = (() => {
+    const origin = window.location.origin;
+    const isCloudflare = origin && origin.includes('trycloudflare.com');
+    const isWindowsAgent = origin && origin.includes('localhost:5002');
+    if (isCloudflare || isWindowsAgent) {
+        return origin;
+    }
+    return 'http://localhost:5002';
+})();
+
+window.addEventListener('DOMContentLoaded', () => {
+    const inputEl = document.getElementById('backendUrlInput');
+    if (inputEl) inputEl.value = CONVERT_SERVER;
+});
+
+function getBackendUrl() {
+    const input = document.getElementById('backendUrlInput');
+    let url = input?.value?.trim() || CONVERT_SERVER;
+    if (url.endsWith('/')) url = url.slice(0, -1);
+    return url;
+}
+
+async function postToBackend(endpoint, formData) {
+    const backendUrl = getBackendUrl();
+    const url = `${backendUrl}/${endpoint}`;
+    try {
+        const resp = await fetch(url, { method: 'POST', body: formData });
+        if (!resp.ok) {
+            const text = await resp.text().catch(() => null);
+            let message = `Server error ${resp.status}`;
+            if (text) {
+                try {
+                    const body = JSON.parse(text);
+                    message = body.error || text;
+                } catch {
+                    message = text;
+                }
+            }
+            throw new Error(message);
+        }
+        return resp;
+    } catch (err) {
+        throw new Error(`Backend request failed: ${url} — ${err.message}`);
+    }
+}
+
+const CHUNK_BYTES      = 192;
+const SERIAL_SUPPORTED = 'serial' in navigator;
+const SR               = 16000;
+const WINDOW_SAMPLES   = 16000;
+const HOP_SAMPLES      = 8000;
+
+let MODEL_FRAMES = 43;
+let MODEL_BINS   = 232;
+const FFT_WIN    = 1024;
+
+let CLIP_MS     = 1500;
+let THRESH      = 0.80;
+let INFER_MS    = 500;
+
+let recognizer     = null;
+let backbone       = null;
+let embedExtractor = null;
+let EMBED_DIM      = 0;
+
+let headModel      = null;
+let trained        = false;
+let classNamesCopy = [];
+
+let embeddings  = {};
+let classAudio  = {};
+
+let classes = [
+    {id:1, name:'Word1', color:'#4ade80'},
+    {id:2, name:'Word2', color:'#60a5fa'},
+];
+let nextClassId = 3;
+const COLORS = ['#4ade80','#60a5fa','#f87171','#fbbf24','#a78bfa','#22d3ee','#fb923c','#e879f9'];
+
+let micStream    = null;
+let micAudioCtx  = null;
+let micAnalyser  = null;
+let activeMicIdx = null;
+let isRecording  = false;
+let recStartTime = 0;
+let recProgTimer = null;
+
+let micActive    = false;
+let inferStream  = null;
+let inferCtx     = null;
+let inferAnalyser= null;
+let inferBuf     = null;
+let inferBufPos  = 0;
+let inferTimer   = null;
+let inferProc    = null;
+let visFrame     = null;
+
+const ENC=new TextEncoder(), DEC=new TextDecoder();
+let port=null, portReader=null, portWriter=null, connected=false, rxBuf='';
+
+// ── WebSerial utilities ──────────────────────────────────────────────────
+function usbLog(m,c=''){const el=document.getElementById('usbLog');if(!el)return;const l=document.createElement('div');if(c)l.className=c;l.textContent=m;el.appendChild(l);el.scrollTop=el.scrollHeight;}
+function usbLogClear(){const el=document.getElementById('usbLog');if(el)el.innerHTML='';}
+function usbSetPct(i,p){const pv=Math.round(p*100);const pEl=document.getElementById('usbFile'+i+'Pct');const fEl=document.getElementById('usb'+i+'Fill');if(pEl)pEl.textContent=pv+'%';if(fEl)fEl.style.width=pv+'%';}
+function showUsbPanel(v){document.getElementById('usbProgressPanel')?.classList.toggle('visible',v);}
+function resetUsbPanel(){usbSetPct(1,0);usbSetPct(2,0);usbLogClear();showUsbPanel(false);}
+async function cleanupPort(){connected=false;try{portReader&&await portReader.cancel();}catch{}try{portReader&&portReader.releaseLock();}catch{}try{portWriter&&await portWriter.close();}catch{}try{portWriter&&portWriter.releaseLock();}catch{}try{port&&await port.close();}catch{}port=portReader=portWriter=null;}
+async function rxPump(){rxBuf='';try{while(connected){const{value,done}=await portReader.read();if(done)break;if(value?.length){const t=DEC.decode(value,{stream:true});rxBuf+=t;}}}catch(e){if(connected)usbLog('RX: '+e.message,'err');}}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function write(d){if(!portWriter)return;await portWriter.write(typeof d==='string'?ENC.encode(d):d);}
+async function enterRawREPL(){usbLog('Entering REPL...','info');await write('\x03');await sleep(200);await write('\x03');await sleep(200);rxBuf='';await write('\x01');await sleep(300);let b='',t=Date.now()+4000;while(Date.now()<t){b+=rxBuf;rxBuf='';if(b.includes('raw REPL')){usbLog('REPL ready','ok');rxBuf='';return;}await sleep(50);}await write('\x01');await sleep(500);b+=rxBuf;rxBuf='';if(b.includes('raw REPL'))usbLog('REPL ready','ok');else usbLog('REPL not found - reset board','warn');rxBuf='';}
+async function exitRawREPL(){await write('\x02');await sleep(200);}
+async function execPy(code){rxBuf='';await write(code);await write('\x04');let full='';const dl=Date.now()+10000;while(Date.now()<dl){if(rxBuf.length){full+=rxBuf;rxBuf='';const oi=full.indexOf('OK');if(oi>=0){const a=full.slice(oi+2);const e1=a.indexOf('\x04');if(e1>=0){const e2=a.indexOf('\x04',e1+1);if(e2>=0){const se=a.slice(e1+1,e2).trim();if(se)usbLog('stderr: '+se,'warn');return a.slice(0,e1).trim();}}}if(full.includes('\r\n>')||full==='>'){await write('\x03');await sleep(100);rxBuf='';throw new Error('REPL continuation');}}await sleep(10);}throw new Error('Timeout');}
+async function ensureDir(p){await execPy(`import os\r\ntry:\r\n os.mkdir('${p.replace(/\/$/,"")}')\r\nexcept:pass`);}
+async function writeFileOnBoard(dest,arr,onPct){await execPy(`_f=open('${dest}','wb')`);let off=0;while(off<arr.length){const sl=arr.slice(off,off+CHUNK_BYTES);const hex=Array.from(sl).map(b=>b.toString(16).padStart(2,'0')).join('');await execPy(`_f.write(bytes.fromhex('${hex}'))`);off+=sl.length;if(onPct)onPct(off/arr.length);}await execPy(`_f.close();del _f`);}
+function onDeployMethodChange(val){document.getElementById('wifiRow').style.display=val==='wifi'?'flex':'none';document.getElementById('usbBaudRow').style.display=val==='usb'?'flex':'none';if(val!=='usb')showUsbPanel(false);}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function setStatus(msg){document.getElementById('statusBar').textContent=msg;}
+function updateThresh(v){THRESH=parseInt(v)/100;const el=document.getElementById('thresholdValue');if(el)el.textContent=v+'%';}
+function updateInferInterval(v){INFER_MS=parseInt(v);const e1=document.getElementById('threshDisplay2');if(e1)e1.textContent=v+'ms';const e2=document.getElementById('inferDisplay');if(e2)e2.textContent=v+'ms';if(micActive)restartInferTimer();}
+function isNoise(name){const n=name.toLowerCase();return n.includes('noise')||n.includes('background')||n.includes('silence');}
+function updateButtons(){const ok=trained;['deployHeaderBtn','deployCardBtn','deployK230Btn','exportBtn','exportEsp32Btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ok;});const mb=document.getElementById('micBtn');if(mb)mb.disabled=!ok;}
+
+// ── Clip length ───────────────────────────────────────────────────────────
+function setClipLen(ms){
+    CLIP_MS=ms;
+    document.querySelectorAll('.cl-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.ms)===ms));
+    const nW=computeNWindows(ms);
+    const h=document.getElementById('clipLenHint');
+    if(h)h.innerHTML=`Each clip is recorded for <b>${ms/1000}s</b>, sliced into <b>${nW}</b> overlapping 1-sec windows, each embedded -> averaged -> 1 clip vector.`;
+    const a=document.getElementById('nWindows');    if(a)a.textContent=nW;
+    const b=document.getElementById('pbClipLen');   if(b)b.textContent=ms/1000;
+    const c2=document.getElementById('pbWindows');  if(c2)c2.textContent=nW;
+}
+function computeNWindows(ms){const samples=Math.ceil(SR*(ms/1000));let n=0,start=0;while(start+WINDOW_SAMPLES<=samples){n++;start+=HOP_SAMPLES;}return Math.max(1,n);}
+
+// ── Build embedding extractor from backbone layer references ─────────────
+function buildEmbedExtractor(){
+    const layers=backbone.layers;
+    let embedLayer=null, embedDim=0;
+    for(let i=layers.length-2;i>=0;i--){
+        const layer=layers[i];
+        const shape=layer.outputShape;
+        const flat=Array.isArray(shape[0])?shape[0]:shape;
+        if(flat.length===2&&typeof flat[1]==='number'&&flat[1]>=32){embedLayer=layer;embedDim=flat[1];break;}
+    }
+    if(!embedLayer){embedLayer=layers[layers.length-2];const shape=embedLayer.outputShape;const flat=Array.isArray(shape[0])?shape[0]:shape;embedDim=flat[flat.length-1]||128;}
+    console.log('[EmbedExtractor] using layer "'+embedLayer.name+'" dim '+embedDim);
+    embedExtractor=tf.model({inputs:backbone.inputs,outputs:embedLayer.output});
+    EMBED_DIM=embedDim;
+    try{const inShape=backbone.inputs[0].shape;if(Array.isArray(inShape)&&inShape.length===4){if(inShape[1])MODEL_FRAMES=inShape[1];if(inShape[2])MODEL_BINS=inShape[2];}console.log('[BackboneShape]',JSON.stringify(inShape));}catch(e){console.warn('[BackboneShape]',e);}
+    const nameEl=document.getElementById('embedLayerName');const dimEl=document.getElementById('embedLayerDim');
+    const infoBox=document.getElementById('embedInfoBox');const pbDim=document.getElementById('pbEmbedDim');
+    if(nameEl)nameEl.textContent=embedLayer.name;if(dimEl)dimEl.textContent=embedDim;
+    if(infoBox)infoBox.style.display='block';if(pbDim)pbDim.textContent=embedDim;
+    return embedDim;
+}
+
+// ── Load backbone ────────────────────────────────────────────────────────
+async function loadBackbone(){
+    const fill=document.getElementById('modelLoadFill');
+    const icon=document.getElementById('modelLoadIcon');
+    const title=document.getElementById('modelLoadTitle');
+    const sub=document.getElementById('modelLoadStatus');
+    try{
+        let p=0;
+        const ticker=setInterval(()=>{p=Math.min(90,p+Math.random()*10);if(fill)fill.style.width=p+'%';},300);
+        const modelUrl = new URL('./offline_libs/models/speech_commands/model.json', window.location.href).href;
+        const metadataUrl = new URL('./offline_libs/models/speech_commands/metadata.json', window.location.href).href;
+        recognizer=speechCommands.create('BROWSER_FFT', null, modelUrl, metadataUrl);
+        await recognizer.ensureModelLoaded();
+        backbone=recognizer.model;
+        clearInterval(ticker);
+        buildEmbedExtractor();
+        if(fill){fill.style.width='100%';fill.style.background='#10b981';}
+        if(icon)icon.textContent='✅';
+        if(title)title.textContent='Backbone ready — Speech Commands v2 (embed dim: '+EMBED_DIM+')';
+        if(sub)sub.textContent=EMBED_DIM+'-dim embeddings. Manual pipeline active.';
+        document.getElementById('modelLoadBar').style.borderLeftColor='#10b981';
+        ['addClassBtn','addNoiseBtn','trainBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+        setStatus('Backbone loaded (embed dim: '+EMBED_DIM+') — add clips for each class, then train.');
+        render();
+    }catch(e){
+        if(fill){fill.style.width='100%';fill.style.background='#ef4444';}
+        if(icon)icon.textContent='❌';
+        if(title)title.textContent='Failed to load backbone';
+        if(sub)sub.textContent=e.message;
+        setStatus('Backbone load failed: '+e.message);
+        console.error(e);
+    }
+}
+
+// ── Pure-JS radix-2 Cooley-Tukey FFT ────────────────────────────────────
+function realFFTMagnitudes(signal){
+    const n=signal.length;
+    const re=new Float32Array(signal);
+    const im=new Float32Array(n);
+    const bits=Math.log2(n)|0;
+    for(let i=1,j=0;i<n;i++){let bit=n>>1,x=i;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;}}
+    for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wR=Math.cos(ang),wI=Math.sin(ang),half=len>>1;for(let i=0;i<n;i+=len){let cR=1,cI=0;for(let j=0;j<half;j++){const uR=re[i+j],uI=im[i+j],vR=re[i+j+half]*cR-im[i+j+half]*cI,vI=re[i+j+half]*cI+im[i+j+half]*cR;re[i+j]=uR+vR;im[i+j]=uI+vI;re[i+j+half]=uR-vR;im[i+j+half]=uI-vI;const nr=cR*wR-cI*wI;cI=cR*wI+cI*wR;cR=nr;}}}
+    const mag=new Float32Array(n>>1);
+    for(let i=0;i<(n>>1);i++)mag[i]=Math.sqrt(re[i]*re[i]+im[i]*im[i]);
+    return mag;
+}
+
+// ── Spectrogram preprocessing ────────────────────────────────────────────
+function computeSpectrogram(pcm16k){
+    const n=pcm16k.length,win=FFT_WIN;
+    const hop=MODEL_FRAMES>1?Math.max(1,Math.floor((n-win)/(MODEL_FRAMES-1))):n;
+    const hann=new Float32Array(win);
+    for(let i=0;i<win;i++)hann[i]=0.5*(1-Math.cos(2*Math.PI*i/(win-1)));
+    const specData=new Float32Array(MODEL_FRAMES*MODEL_BINS);
+    for(let f=0;f<MODEL_FRAMES;f++){
+        const s=f*hop;
+        const frame=new Float32Array(win);
+        for(let i=0;i<win;i++)frame[i]=((s+i)<n?pcm16k[s+i]:0)*hann[i];
+        const mag=realFFTMagnitudes(frame);
+        for(let b=0;b<MODEL_BINS;b++)specData[f*MODEL_BINS+b]=Math.log(Math.max(mag[b],1e-6));
+    }
+    return tf.tensor4d(specData,[1,MODEL_FRAMES,MODEL_BINS,1]);
+}
+function prepareWindowInput(pcm16k){return computeSpectrogram(pcm16k);}
+
+// ── Embed one window ─────────────────────────────────────────────────────
+async function embedWindow(pcm16k){
+    if(!embedExtractor)throw new Error('Embedding extractor not built yet');
+    const input=prepareWindowInput(pcm16k);
+    const embedding=embedExtractor.predict(input);
+    input.dispose();
+    const flat=embedding.reshape([-1]);
+    embedding.dispose();
+    const arr=await flat.data();
+    flat.dispose();
+    return new Float32Array(arr);
+}
+
+// ── Embed full clip (slice into windows, embed each, average, L2-normalise) ──
+async function embedClip(pcmFull){
+    const totalSamples=pcmFull.length;
+    const windows=[];
+    let start=0;
+    while(start+WINDOW_SAMPLES<=totalSamples){windows.push(pcmFull.slice(start,start+WINDOW_SAMPLES));start+=HOP_SAMPLES;}
+    if(windows.length===0){const padded=new Float32Array(WINDOW_SAMPLES);padded.set(pcmFull.slice(0,WINDOW_SAMPLES));windows.push(padded);}
+    const embeds=[];
+    for(const win of windows){const e=await embedWindow(win);embeds.push(e);}
+    const dim=embeds[0].length;
+    const avg=new Float32Array(dim);
+    for(const e of embeds)for(let i=0;i<dim;i++)avg[i]+=e[i];
+    for(let i=0;i<dim;i++)avg[i]/=embeds.length;
+    let norm=0;for(let i=0;i<dim;i++)norm+=avg[i]*avg[i];
+    norm=Math.sqrt(norm)+1e-8;
+    for(let i=0;i<dim;i++)avg[i]/=norm;
+    return avg;
+}
+
+// ── Decode + resample ────────────────────────────────────────────────────
+async function decodeAndResample(blob){
+    const ab=await blob.arrayBuffer();
+    const decCtx=new AudioContext();
+    const decoded=await decCtx.decodeAudioData(ab);
+    await decCtx.close();
+    const targetLen=Math.ceil(decoded.duration*SR);
+    const offCtx=new OfflineAudioContext(1,targetLen,SR);
+    const src=offCtx.createBufferSource();
+    src.buffer=decoded;src.connect(offCtx.destination);src.start(0);
+    const rendered=await offCtx.startRendering();
+    return rendered.getChannelData(0).slice();
+}
+
+// ── PCM -> WAV ────────────────────────────────────────────────────────────
+function pcmToWav(pcm,sr=16000){
+    const n=pcm.length,ds=n*2,buf=new ArrayBuffer(44+ds),v=new DataView(buf);
+    const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+    ws(0,'RIFF');v.setUint32(4,36+ds,true);ws(8,'WAVE');ws(12,'fmt ');
+    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);
+    v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,ds,true);
+    let o=44;for(let i=0;i<n;i++){const s=Math.max(-1,Math.min(1,pcm[i]));v.setInt16(o,s<0?s*0x8000:s*0x7FFF,true);o+=2;}
+    return new Blob([buf],{type:'audio/wav'});
+}
+
+function checkSecureContext() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        let msg = "Microphone access requires a Secure Context (HTTPS or localhost).\n\n";
+        msg += "If you are running Expo on a physical device over Wi-Fi:\n";
+        msg += "1. Run your Expo CLI using the '--tunnel' flag (e.g. `npx expo start --tunnel`). This will generate a secure `https://` address.\n";
+        msg += "2. If accessing via a web browser on a tablet/phone (http://192.168.x.x), open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Google Chrome, add your URL to the text area, enable the flag, and restart Chrome.";
+        alert(msg);
+        return false;
+    }
+    return true;
+}
+
+async function getAudioStream() {
+    try {
+        return await navigator.mediaDevices.getUserMedia({
+            audio: {
+                sampleRate: SR,
+                channelCount: 1,
+                echoCancellation: false,
+                noiseSuppression: false
+            }
+        });
+    } catch (e) {
+        console.warn("Strict audio constraints failed, trying standard audio constraints fallback:", e);
+        try {
+            return await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+            throw err;
+        }
+    }
+}
+
+// ── Mic capture ──────────────────────────────────────────────────────────
+async function openMic(classIdx){
+    if(!checkSecureContext()) return;
+    if(!backbone||!embedExtractor){setStatus('Backbone not loaded yet.');return;}
+    if(activeMicIdx!==null)stopMic();
+    try{
+        micStream=await getAudioStream();
+        micAudioCtx=new AudioContext();
+        micAnalyser=micAudioCtx.createAnalyser();micAnalyser.fftSize=1024;
+        micAudioCtx.createMediaStreamSource(micStream).connect(micAnalyser);
+        activeMicIdx=classIdx;render();animateMicVis(classIdx);
+        setStatus('Mic open — hold the button to record a clip.');
+    }catch(e){alert('Mic error: '+e.message);}
+}
+
+function stopMic(){
+    clearInterval(recProgTimer);recProgTimer=null;
+    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+    if(micAudioCtx){micAudioCtx.close().catch(()=>{});micAudioCtx=null;}
+    micAnalyser=null;activeMicIdx=null;isRecording=false;render();setStatus('Mic stopped.');
+}
+
+function animateMicVis(classIdx){
+    const canvas=document.getElementById('mic-vis-'+classIdx);
+    if(!canvas||activeMicIdx!==classIdx)return;
+    requestAnimationFrame(()=>animateMicVis(classIdx));
+    const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
+    ctx.fillStyle='#060a10';ctx.fillRect(0,0,W,H);
+    if(micAnalyser){
+        const buf=new Uint8Array(micAnalyser.frequencyBinCount);
+        micAnalyser.getByteTimeDomainData(buf);
+        const cls=classes[classIdx];
+        ctx.beginPath();ctx.strokeStyle=cls?.color||'#4ade80';ctx.lineWidth=1.2;
+        for(let i=0;i<W;i++){const v=(buf[Math.floor(i*buf.length/W)]/128)-1;const y=H/2+v*(H/2-3);i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}
+        ctx.stroke();
+    }
+}
+
+async function recordClip(classIdx){
+    if(!backbone||!embedExtractor||activeMicIdx!==classIdx||isRecording)return;
+    const cls=classes[classIdx];
+    isRecording=true;recStartTime=Date.now();
+    const progFill=document.getElementById('rec-prog-'+classIdx);
+    if(progFill){const total=CLIP_MS;recProgTimer=setInterval(()=>{const elapsed=Date.now()-recStartTime;const pct=Math.min(100,(elapsed/total)*100);progFill.style.width=pct+'%';if(pct>=100)clearInterval(recProgTimer);},30);}
+    try{
+        const chunks=[];
+        const mr=new MediaRecorder(micStream);
+        mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+        mr.start(100);
+        await sleep(CLIP_MS);
+        await new Promise(res=>{mr.onstop=res;mr.stop();});
+        clearInterval(recProgTimer);if(progFill)progFill.style.width='100%';
+        setStatus('Processing clip...');
+        const blob=new Blob(chunks,{type:chunks[0]?.type||'audio/webm'});
+        const pcm=await decodeAndResample(blob);
+        if(!classAudio[cls.name])classAudio[cls.name]=[];
+        classAudio[cls.name].push(pcm.slice());
+        const emb=await embedClip(pcm);
+        if(!embeddings[cls.name])embeddings[cls.name]=[];
+        embeddings[cls.name].push(emb);
+        const count=embeddings[cls.name].length;
+        const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=count+' clips';
+        const visCount=document.getElementById('vis-count-'+classIdx);if(visCount)visCount.textContent=count+' clips';
+        addThumb(classIdx,pcm,emb,count-1);renderStats();
+        trained=false;updateButtons();
+        setStatus('Clip '+count+' for "'+cls.name+'" — '+(pcm.length/SR).toFixed(2)+'s -> '+computeNWindows(CLIP_MS)+' windows -> '+EMBED_DIM+'-dim');
+    }catch(e){setStatus('Record error: '+e.message);console.error(e);}
+    finally{isRecording=false;clearInterval(recProgTimer);if(progFill)progFill.style.width='0%';}
+}
+
+function startHold(classIdx){recordClip(classIdx);}
+function stopHold(){}
+
+// ── Thumbnails ────────────────────────────────────────────────────────────
+let playingCtx=null;
+
+function drawWaveThumb(canvas,pcm,color){
+    const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
+    ctx.fillStyle='#060a10';ctx.fillRect(0,0,W,H);
+    const step=Math.max(1,Math.floor(pcm.length/W));
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1;
+    for(let i=0;i<W;i++){let sum=0;for(let j=0;j<step;j++)sum+=Math.abs(pcm[i*step+j]||0);const amp=(sum/step)*H*2.5;const y=H/2-amp/2;i===0?ctx.moveTo(i,H/2):ctx.lineTo(i,Math.max(1,Math.min(H-1,y)));}
+    ctx.stroke();
+}
+
+async function playClip(classIdx,clipIdx,btnEl){
+    if(playingCtx){try{playingCtx.close();}catch{}playingCtx=null;}
+    document.querySelectorAll('.thumb-play.playing').forEach(b=>{b.classList.remove('playing');b.textContent='▶';});
+    const cls=classes[classIdx];
+    const pcm=(classAudio[cls.name]||[])[clipIdx];
+    if(!pcm){setStatus('No audio stored for this clip.');return;}
+    try{
+        playingCtx=new AudioContext({sampleRate:SR});
+        const buf=playingCtx.createBuffer(1,pcm.length,SR);buf.copyToChannel(pcm,0);
+        const s=playingCtx.createBufferSource();s.buffer=buf;s.connect(playingCtx.destination);s.start(0);
+        if(btnEl){btnEl.classList.add('playing');btnEl.textContent='■';}
+        s.onended=()=>{if(btnEl){btnEl.classList.remove('playing');btnEl.textContent='▶';}playingCtx=null;};
+    }catch(e){setStatus('Playback error: '+e.message);}
+}
+
+function addThumb(classIdx,pcm,emb,clipIdx){
+    const cls=classes[classIdx];
+    const thumbsEl=document.getElementById('thumbs-'+classIdx);if(!thumbsEl)return;
+    const wrap=document.createElement('div');wrap.className='thumb';
+    const cv=document.createElement('canvas');cv.width=44;cv.height=26;
+    drawWaveThumb(cv,pcm,cls.color);
+    const del=document.createElement('button');del.className='thumb-del';del.textContent='X';
+    del.onclick=()=>{wrap.remove();if(classAudio[cls.name])classAudio[cls.name].splice(clipIdx,1);if(embeddings[cls.name])embeddings[cls.name].splice(clipIdx,1);const count=(embeddings[cls.name]||[]).length;const ce=document.getElementById('cc-count-'+classIdx);if(ce)ce.textContent=count+' clips';renderStats();trained=false;updateButtons();};
+    const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';play.title=(pcm.length/SR).toFixed(2)+'s @ 16kHz';
+    (()=>{const pi=clipIdx;play.onclick=()=>playClip(classIdx,pi,play);})();
+    wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render(){renderClasses();renderStats();initOutputBars();}
+
+function renderClasses(){
+    const container=document.getElementById('classList');container.innerHTML='';
+    classes.forEach((cls,idx)=>{
+        const count=(embeddings[cls.name]||[]).length;
+        const isRec=activeMicIdx===idx;
+        const isNoiseCls=isNoise(cls.name);
+        const card=document.createElement('div');card.className='class-card';
+        card.innerHTML=`
+        <div class="class-header">
+            <input class="class-name" style="color:${cls.color}" value="${cls.name}"
+                onchange="renameClass(${idx},this.value)" oninput="renameClass(${idx},this.value)"/>
+            <span class="sample-count" id="cc-count-${idx}">${count} clips</span>
+            <button class="remove-btn" onclick="removeClass(${idx})">X</button>
+        </div>
+        ${isNoiseCls?'<div><span class="noise-badge">🔇 NOISE CLASS</span></div>':''}
+        ${isRec?`
+        <div class="mic-vis-wrap">
+            <canvas id="mic-vis-${idx}" class="mic-vis-canvas" width="300" height="72"></canvas>
+            <div class="mic-vis-label"><span class="rec-dot"></span> RECORDING</div>
+            <div class="mic-vis-count" id="vis-count-${idx}">${count} clips</div>
+            <div class="rec-progress"><div class="rec-progress-fill" id="rec-prog-${idx}"></div></div>
+        </div>
+        <div class="cam-btns">
+            <button class="hold-btn" style="background:${cls.color}"
+                onmousedown="startHold(${idx})" onmouseup="stopHold()"
+                onmouseleave="stopHold()" ontouchstart="startHold(${idx})" ontouchend="stopHold()">
+                🎤 Hold to Record (${CLIP_MS/1000}s)
+            </button>
+            <button class="stop-btn" onclick="stopMic()">Stop</button>
+        </div>`:`
+        <div class="add-btns">
+            <button class="add-btn" style="color:${cls.color};border-color:${cls.color};background:${cls.color}18" onclick="openMic(${idx})">🎤 Record</button>
+            <button class="add-btn" style="color:${cls.color};border-color:${cls.color};background:${cls.color}18" onclick="uploadWav(${idx})">⬆ Upload WAV</button>
+        </div>`}
+        ${isNoiseCls?'<div class="noise-hint">🔇 Record silence or ambient sound — no speech</div>':''}
+        <div class="thumbs" id="thumbs-${idx}"></div>
+        ${count>0?`<div class="class-actions">
+            <button class="extract-btn-card" style="color:${cls.color};border-color:${cls.color};background:${cls.color}10" onclick="extractClips(${idx})">
+                ⧉ Extract (x2) <span style="font-size:10px;font-weight:400;color:#94a3b8">${count}->${count*2}</span>
+            </button>
+            <button class="download-btn-card" onclick="downloadClassClips(${idx})">⬇ Download Clips (${count} WAV)</button>
+        </div>`:''}`;
+        container.appendChild(card);
+        const thumbsEl=card.querySelector('#thumbs-'+idx);
+        const audioClips=classAudio[cls.name]||[];
+        audioClips.forEach((pcm,ci)=>{
+            const wrap=document.createElement('div');wrap.className='thumb';
+            const cv=document.createElement('canvas');cv.width=44;cv.height=26;
+            drawWaveThumb(cv,pcm,cls.color);
+            const del=document.createElement('button');del.className='thumb-del';del.textContent='X';
+            del.onclick=(()=>{const ci2=ci;return()=>{wrap.remove();if(classAudio[cls.name])classAudio[cls.name].splice(ci2,1);if(embeddings[cls.name])embeddings[cls.name].splice(ci2,1);const c=(embeddings[cls.name]||[]).length;const ce=document.getElementById('cc-count-'+idx);if(ce)ce.textContent=c+' clips';renderStats();trained=false;updateButtons();};})();
+            const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';
+            (()=>{const pi=ci;play.onclick=()=>playClip(idx,pi,play);})();
+            wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);
+        });
+        if(isRec&&micAnalyser)animateMicVis(idx);
+    });
+}
+
+function renderStats(){
+    document.getElementById('statList').innerHTML=classes.map(cls=>`
+        <div class="stat-row">
+            <div class="stat-dot" style="background:${cls.color}"></div>
+            <span class="stat-name">${cls.name}</span>
+            <span class="stat-count">${(embeddings[cls.name]||[]).length} clips</span>
+        </div>`).join('');
+}
+
+// ── Class management ──────────────────────────────────────────────────────
+function addClass(){const id=nextClassId++;classes.push({id,name:'Word'+id,color:COLORS[(id-1)%COLORS.length]});render();}
+function addNoiseClass(){if(classes.find(c=>isNoise(c.name))){alert('Noise class already exists!');return;}classes.push({id:nextClassId++,name:'Background Noise',color:'#fbbf24'});render();setStatus('Noise class added — record silence or ambient room sound.');}
+function removeClass(idx){if(classes.length<=2){alert('Need at least 2 classes');return;}if(activeMicIdx===idx)stopMic();const cls=classes[idx];delete embeddings[cls.name];delete classAudio[cls.name];classes.splice(idx,1);trained=false;updateButtons();render();}
+function renameClass(idx,name){const cls=classes[idx];const old=cls.name;if(old===name)return;if(embeddings[old]){embeddings[name]=embeddings[old];delete embeddings[old];}if(classAudio[old]){classAudio[name]=classAudio[old];delete classAudio[old];}cls.name=name;renderStats();const lEl=document.getElementById('output-label-'+idx);if(lEl){lEl.textContent=name;lEl.style.color=cls.color;}}
+
+// ── Extract x2 ────────────────────────────────────────────────────────────
+function extractClips(classIdx){
+    const cls=classes[classIdx];const embs=embeddings[cls.name]||[];const audio=classAudio[cls.name]||[];
+    if(embs.length===0){alert('No clips to extract.');return;}
+    embeddings[cls.name]=[...embs,...embs.map(e=>e.slice())];
+    classAudio[cls.name]=[...audio,...audio.map(p=>p.slice())];
+    const newCount=embeddings[cls.name].length;
+    const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=newCount+' clips';
+    renderStats();trained=false;updateButtons();
+    const thumbsEl=document.getElementById('thumbs-'+classIdx);
+    if(thumbsEl){audio.forEach((pcm,i)=>{const ni=embs.length+i;const wrap=document.createElement('div');wrap.className='thumb';const cv=document.createElement('canvas');cv.width=44;cv.height=26;drawWaveThumb(cv,pcm,cls.color);const del=document.createElement('button');del.className='thumb-del';del.textContent='X';del.onclick=()=>{wrap.remove();if(embeddings[cls.name])embeddings[cls.name].splice(ni,1);if(classAudio[cls.name])classAudio[cls.name].splice(ni,1);renderStats();};const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';(()=>{const pi=ni;play.onclick=()=>playClip(classIdx,pi,play);})();wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);});}
+    setStatus('"'+cls.name+'" doubled to '+newCount+' clips. Re-train.');
+}
+
+// ── Upload WAV ────────────────────────────────────────────────────────────
+function uploadWav(classIdx){
+    const cls=classes[classIdx];
+    const input=document.createElement('input');input.type='file';input.accept='audio/*';input.multiple=true;
+    input.onchange=async e=>{
+        for(const file of Array.from(e.target.files)){
+            try{
+                setStatus('Processing "'+file.name+'"...');
+                const ab=await file.arrayBuffer();const decCtx=new AudioContext();const decoded=await decCtx.decodeAudioData(ab);await decCtx.close();
+                const targetLen=Math.ceil(decoded.duration*SR);const offCtx=new OfflineAudioContext(1,targetLen,SR);const src=offCtx.createBufferSource();src.buffer=decoded;src.connect(offCtx.destination);src.start(0);const rendered=await offCtx.startRendering();const pcmFull=rendered.getChannelData(0).slice();
+                const clipSamples=Math.ceil(SR*(CLIP_MS/1000));const numClips=Math.max(1,Math.floor(pcmFull.length/clipSamples));
+                for(let ci=0;ci<numClips;ci++){
+                    const chunk=pcmFull.slice(ci*clipSamples,(ci+1)*clipSamples);const padded=new Float32Array(clipSamples);padded.set(chunk.slice(0,clipSamples));
+                    const emb=await embedClip(padded);
+                    if(!embeddings[cls.name])embeddings[cls.name]=[];if(!classAudio[cls.name])classAudio[cls.name]=[];
+                    embeddings[cls.name].push(emb);classAudio[cls.name].push(padded);
+                    const count=embeddings[cls.name].length;const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=count+' clips';
+                    addThumb(classIdx,padded,emb,count-1);renderStats();
+                    setStatus('WAV clip '+(ci+1)+'/'+numClips+' embedded for "'+cls.name+'"');
+                }
+                trained=false;updateButtons();setStatus('"'+file.name+'" -> '+numClips+' clips added for "'+cls.name+'"');
+            }catch(err){setStatus('Upload error: '+err.message);console.error(err);}
+        }
+    };
+    input.click();
+}
+
+// ── Download ──────────────────────────────────────────────────────────────
+async function downloadClassClips(classIdx){
+    const cls=classes[classIdx];const clips=classAudio[cls.name]||[];
+    if(clips.length===0){alert('No clips recorded yet.');return;}
+    const zip=new JSZip();const fn=cls.name.replace(/[^a-zA-Z0-9_-]/g,'_');const folder=zip.folder(fn);
+    clips.forEach((pcm,i)=>folder.file(fn+'_'+String(i+1).padStart(3,'0')+'.wav',pcmToWav(pcm)));
+    zip.file('labels.txt',classes.map(c=>c.name).join('\n'));
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    downloadBlob(blob,fn+'_clips.zip');
+    setStatus('Downloaded '+clips.length+' WAV clips for "'+cls.name+'"');
+}
+
+async function downloadAllClips(){
+    const total=Object.values(classAudio).reduce((s,a)=>s+a.length,0);
+    if(total===0){alert('No clips recorded yet.');return;}
+    const zip=new JSZip();
+    classes.forEach(cls=>{const clips=classAudio[cls.name]||[];if(!clips.length)return;const fn=cls.name.replace(/[^a-zA-Z0-9_-]/g,'_');const folder=zip.folder(fn);clips.forEach((pcm,i)=>folder.file(fn+'_'+String(i+1).padStart(3,'0')+'.wav',pcmToWav(pcm)));});
+    zip.file('labels.txt',classes.map(c=>c.name).join('\n'));
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    downloadBlob(blob,'voice_dataset.zip');
+    setStatus('Downloaded all '+total+' clips as voice_dataset.zip');
+}
+
+// ── Output bars ────────────────────────────────────────────────────────────
+function initOutputBars(){
+    document.getElementById('outputBars').innerHTML=classes.map((cls,i)=>`
+        <div class="output-row">
+            <span class="output-label" style="color:${cls.color}" id="output-label-${i}">${cls.name}</span>
+            <div class="output-bar-wrap">
+                <div class="output-bar-fill" id="output-bar-${i}" style="width:0%;background:${cls.color}">
+                    <span class="output-bar-pct" id="output-pct-${i}"></span>
+                </div>
+                <span class="output-bar-pct-outside" id="output-pct-out-${i}">0%</span>
+            </div>
+        </div>`).join('');
+}
+
+function updateOutputBars(probs){
+    const best=probs.reduce((a,b)=>a.score>b.score?a:b);
+    const isAbove=best.score>=THRESH;const isNoiseCls=isNoise(best.className);const detected=isAbove&&!isNoiseCls;
+    probs.forEach((p,i)=>{
+        const pct=Math.round(p.score*100);const cls=classes.find(c=>c.name===p.className);const color=cls?.color||COLORS[i%COLORS.length];
+        const bEl=document.getElementById('output-bar-'+i);const pEl=document.getElementById('output-pct-'+i);const oEl=document.getElementById('output-pct-out-'+i);const lEl=document.getElementById('output-label-'+i);
+        if(!bEl)return;bEl.style.width=pct+'%';bEl.style.background=color;
+        if(pct>20){pEl.textContent=pct+'%';oEl.textContent='';}else{pEl.textContent='';oEl.textContent=pct+'%';}
+        if(lEl){lEl.textContent=p.className;lEl.style.color=color;}
+    });
+    const el=document.getElementById('detectStatus');const pct=(best.score*100).toFixed(1);const color=classes.find(c=>c.name===best.className)?.color||'#7c3aed';
+    if(detected){
+        el.style.background=color+'14';el.style.borderBottom='2px solid '+color+'30';
+        el.innerHTML='<div style="width:36px;height:36px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🎤</div><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:'+color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+best.className+'</div><div style="font-size:11px;color:#64748b;margin-top:1px">Heard — '+pct+'% confidence</div></div><div style="font-size:22px;font-weight:900;color:'+color+';flex-shrink:0">'+Math.round(best.score*100)+'%</div>';
+    }else if(isNoiseCls&&isAbove){
+        el.style.background='#fafafa';el.style.borderBottom='2px dashed #e2e8f0';
+        el.innerHTML='<div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔇</div><div style="flex:1"><div style="font-size:14px;font-weight:700;color:#64748b">Background Noise</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">No keyword — '+pct+'%</div></div>';
+    }else{
+        el.style.background='#fafafa';el.style.borderBottom='1px solid #f1f5f9';
+        el.innerHTML='<div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔍</div><div style="flex:1"><div style="font-size:14px;font-weight:700;color:#94a3b8">Listening...</div><div style="font-size:11px;color:#cbd5e1;margin-top:1px">Best: '+best.className+' at '+pct+'% (need '+Math.round(THRESH*100)+'%)</div></div>';
+    }
+}
+
+// ── Train ─────────────────────────────────────────────────────────────────
+function setTrainState(html){document.getElementById('trainStateBox').innerHTML=html;}
+
+async function trainModel(){
+    if(!backbone||!embedExtractor){alert('Backbone not loaded yet.');return;}
+    const missing=classes.filter(c=>(embeddings[c.name]||[]).length<3);
+    if(missing.length>0){alert('Need at least 3 clips per class.\n\nMissing:\n'+missing.map(c=>'  "'+c.name+'": '+(embeddings[c.name]||[]).length+' clips').join('\n'));return;}
+    document.getElementById('trainBtn').disabled=true;
+    trained=false;headModel=null;classNamesCopy=[];updateButtons();
+    const show=(pct,msg)=>{setTrainState('<div class="state-progress"><div class="progress-pct">'+pct+'%</div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%"></div></div><div class="progress-label">'+msg+'</div></div>');setStatus(msg);};
+    try{
+        show(5,'Stacking embeddings...');await tf.nextFrame();
+
+        // ── Collect raw embeddings ────────────────────────────────────────
+        const rawXs=[],rawYs=[],nc=classes.length;let featSize=0;
+        for(let ci=0;ci<classes.length;ci++){
+            const embs=embeddings[classes[ci].name]||[];
+            for(const emb of embs){rawXs.push(Array.from(emb));rawYs.push(ci);featSize=emb.length;}
+        }
+        if(rawXs.length===0)throw new Error('No embeddings found');
+
+        // ── Gaussian noise augmentation ───────────────────────────────────
+        // Embeddings are L2-normalised unit vectors (magnitude=1.0)
+        // sigma=0.04 → 4% perturbation (meaningful but not destructive)
+        // sigma=0.08 → 8% perturbation (larger variation, more robust)
+        // Each original produces 2 copies → 3x total dataset size
+        function randn(){
+            let u=0,v=0;
+            while(u===0)u=Math.random();
+            while(v===0)v=Math.random();
+            return Math.sqrt(-2.0*Math.log(u))*Math.cos(2*Math.PI*v);
+        }
+        const xs=[...rawXs],ys=[...rawYs];
+        const baseLen=rawXs.length;
+        for(let i=0;i<baseLen;i++){
+            const base=rawXs[i],label=rawYs[i];
+            xs.push(base.map(v=>v+randn()*0.04)); ys.push(label);
+            xs.push(base.map(v=>v+randn()*0.08)); ys.push(label);
+        }
+
+        show(15,'Building MLP ('+xs.length+' samples, feat:'+featSize+')...');
+        await tf.nextFrame();
+
+        // ── MLP — fixed for small datasets ───────────────────────────────
+        // Fixes vs previous broken version:
+        // 1. NO L2 regulariser: inputs are L2-normalised; L2 reg collapses
+        //    weights to zero → bias terms dominate → always predicts class 0
+        // 2. Dropout 0.1 / 0.05: small dataset needs signal flow, not masking
+        // 3. batchSize = ALL samples: full-batch gradient = stable convergence
+        // 4. validationSplit = 0: use every sample for training
+        // 5. EPOCHS = 300: more epochs compensate for stable full-batch GD
+        const xsT=tf.tensor2d(xs);
+        const ysT=tf.oneHot(tf.tensor1d(ys,'int32'),nc);
+        headModel=tf.sequential({layers:[
+            tf.layers.dense({inputShape:[featSize],units:256,activation:'relu'}),
+            tf.layers.dropout({rate:0.1}),
+            tf.layers.dense({units:128,activation:'relu'}),
+            tf.layers.dropout({rate:0.05}),
+            tf.layers.dense({units:nc,activation:'softmax'})
+        ]});
+        headModel.compile({
+            optimizer:tf.train.adam(0.001),
+            loss:'categoricalCrossentropy',
+            metrics:['accuracy']
+        });
+
+        show(20,'Training '+xs.length+' samples, 300 epochs, full batch...');
+        const EPOCHS=300;
+        let bestAcc=0;
+        await headModel.fit(xsT,ysT,{
+            epochs:EPOCHS,
+            batchSize:xs.length,
+            validationSplit:0,
+            shuffle:true,
+            callbacks:{onEpochEnd:async(epoch,logs)=>{
+                const pct=20+Math.round(((epoch+1)/EPOCHS)*78);
+                const acc=logs?.acc!=null?(logs.acc*100).toFixed(0)+'%':'?';
+                if((logs?.acc||0)>bestAcc)bestAcc=logs.acc||0;
+                if(epoch%5===0||epoch===EPOCHS-1){
+                    show(pct,'Epoch '+(epoch+1)+'/'+EPOCHS
+                        +' acc:'+acc
+                        +' best:'+(bestAcc*100).toFixed(0)+'%');
+                    await tf.nextFrame();
+                }
+            }}
+        });
+        xsT.dispose();ysT.dispose();
+        classNamesCopy=classes.map(c=>c.name);trained=true;
+        const total=rawXs.length;
+        setStatus('Trained on '+total+' clips ('+xs.length+' augmented) — '
+            +EMBED_DIM+'-dim, '+computeNWindows(CLIP_MS)+'x windows. Start mic to test.');
+        setTrainState('<div class="state-done"><div class="icon">✅</div>'
+            +'<h3>Model Trained!</h3>'
+            +'<p>'+total+' clips · '+classes.length+' classes</p>'
+            +'<p style="font-size:11px;margin-top:4px;color:#7c3aed;font-weight:700">'
+            +EMBED_DIM+'-dim · '+xs.length+' augmented · best acc: '+(bestAcc*100).toFixed(0)+'%</p>'
+            +'<button class="retrain-btn" onclick="resetTrain()">Retrain</button></div>');
+        initOutputBars();updateButtons();
+    }catch(e){
+        console.error('Train error:',e);
+        alert('Training failed: '+e.message);
+        setStatus('Training failed: '+e.message);
+        setTrainState('<div class="state-ready"><div class="icon">🧠</div><h3>Ready to train.</h3><p>Fix error and try again.</p></div>');
+    }finally{document.getElementById('trainBtn').disabled=false;}
+}
+
+function resetTrain(){trained=false;headModel=null;classNamesCopy=[];updateButtons();setTrainState('<div class="state-ready"><div class="icon">🧠</div><h3>Ready to train.</h3><p>Add at least 5 clips per class<br>then press Train.</p></div>');setStatus('');initOutputBars();}
+
+// ── Live inference ────────────────────────────────────────────────────────
+function restartInferTimer(){clearInterval(inferTimer);inferTimer=setInterval(runInference,INFER_MS);}
+
+async function runInference(){
+    if(!micActive||!headModel||!embedExtractor||!inferBuf)return;
+    try{
+        const clipSamples=Math.ceil(SR*(CLIP_MS/1000));const clip=new Float32Array(clipSamples);const bufLen=inferBuf.length;const endPos=inferBufPos;
+        for(let i=0;i<clipSamples;i++){const pos=((endPos-clipSamples+i)%bufLen+bufLen)%bufLen;clip[i]=inferBuf[pos];}
+        const emb=await embedClip(clip);const embT=tf.tensor2d([Array.from(emb)]);
+        const predT=headModel.predict(embT);const probs=predT.dataSync();
+        predT.dispose();embT.dispose();
+        const predictions=classNamesCopy.map((name,i)=>({className:name,score:probs[i]}));
+        updateOutputBars(predictions);
+    }catch(e){console.warn('Inference error:',e.message);}
+}
+
+function drawWaveVis(){
+    if(!micActive)return;visFrame=requestAnimationFrame(drawWaveVis);
+    const canvas=document.getElementById('waveCanvas');if(!canvas||!inferAnalyser)return;
+    const ctx=canvas.getContext('2d');const W=canvas.clientWidth||600,H=canvas.clientHeight||90;
+    canvas.width=W;canvas.height=H;ctx.fillStyle='#0e1320';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1e2a3d';ctx.lineWidth=1;for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(0,H/4*i);ctx.lineTo(W,H/4*i);ctx.stroke();}
+    const buf=new Uint8Array(inferAnalyser.frequencyBinCount);inferAnalyser.getByteTimeDomainData(buf);
+    ctx.beginPath();ctx.strokeStyle='#7c3aed';ctx.lineWidth=1.5;
+    for(let i=0;i<W;i++){const v=(buf[Math.floor(i*buf.length/W)]/128)-1;const y=H/2+v*(H/2-5);i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}
+    ctx.stroke();
+}
+
+async function toggleMic(){
+    if(micActive){stopInference();return;}
+    if(!trained||!headModel){alert('Train first!');return;}
+    if(!checkSecureContext()) return;
+    try{
+        inferStream=await getAudioStream();
+        inferCtx=new AudioContext({sampleRate:SR});inferAnalyser=inferCtx.createAnalyser();inferAnalyser.fftSize=2048;
+        const src=inferCtx.createMediaStreamSource(inferStream);src.connect(inferAnalyser);
+        inferBuf=new Float32Array(SR*5);inferBufPos=0;
+        inferProc=inferCtx.createScriptProcessor(4096,1,1);
+        inferProc.onaudioprocess=e=>{const inp=e.inputBuffer.getChannelData(0);for(let i=0;i<inp.length;i++){inferBuf[inferBufPos%inferBuf.length]=inp[i];inferBufPos++;}};
+        src.connect(inferProc);inferProc.connect(inferCtx.destination);
+        document.getElementById('wavePlaceholder').style.display='none';
+        micActive=true;document.getElementById('micBtn').textContent='Stop';
+        drawWaveVis();restartInferTimer();setStatus('Listening — speak into the mic');
+    }catch(e){alert('Mic error: '+e.message);}
+}
+
+function stopInference(){
+    clearInterval(inferTimer);if(visFrame){cancelAnimationFrame(visFrame);visFrame=null;}
+    if(inferProc){try{inferProc.disconnect();}catch{}}
+    if(inferStream){inferStream.getTracks().forEach(t=>t.stop());inferStream=null;}
+    if(inferCtx){inferCtx.close().catch(()=>{});inferCtx=null;}
+    inferAnalyser=null;inferBuf=null;inferBufPos=0;inferProc=null;micActive=false;
+    document.getElementById('wavePlaceholder').style.display='flex';
+    const canvas=document.getElementById('waveCanvas');if(canvas){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);}
+    document.getElementById('micBtn').textContent='Start Mic';setStatus('Mic stopped.');
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function resetAll(){
+    if(!confirm('Reset everything? Clears all clips and the model.'))return;
+    stopMic();stopInference();
+    trained=false;headModel=null;classNamesCopy=[];embeddings={};classAudio={};
+    classes=[{id:1,name:'Word1',color:'#4ade80'},{id:2,name:'Word2',color:'#60a5fa'}];
+    nextClassId=3;resetUsbPanel();updateButtons();
+    setStatus('Reset complete. Start fresh!');
+    setTrainState('<div class="state-ready"><div class="icon">🧠</div><h3>Ready to train.</h3><p>Add at least 5 clips per class<br>then press Train.</p></div>');
+    render();
+}
+
+// ── Deploy to Blockly ─────────────────────────────────────────────────────
+function deployToBlockly(){
+    if(!trained){alert('Train first!');return;}
+    const classNames=classes.map(c=>c.name);
+    const payload=JSON.stringify({type:'VOICE_MODEL_TRAINED',classes:classNames,clipMs:CLIP_MS});
+    // Also save for standalone browser reload
+    try{sessionStorage.setItem('curio_voice_trained',JSON.stringify(classNames));}catch(e){}
+    if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(payload);}
+    else if(window.parent!==window){window.parent.postMessage(payload,'*');window.opener?.postMessage(payload,'*');}
+    else{window.location.href='index.html';}
+    setStatus('Voice blocks deployed! Words: "'+classNames.join('", "')+'"');
+    ['deployHeaderBtn','deployCardBtn'].forEach(id=>{const btn=document.getElementById(id);if(!btn)return;const orig=btn.textContent;btn.textContent='Deployed!';btn.style.background='#4ade80';setTimeout(()=>{btn.textContent=orig;btn.style.background='';},2500);});
+}
+
+// ── Deploy to K230 ────────────────────────────────────────────────────────
+async function deployToK230(){
+    if(!trained||!headModel){alert('Train first!');return;}
+    const method=document.getElementById('deployMethodInput').value;
+    const btn=document.getElementById('deployK230Btn');const orig=btn.innerHTML;
+    let usbPort=null;
+    if(method==='usb'){
+        if(!SERIAL_SUPPORTED){alert('WebSerial requires Chrome/Edge v89+.');return;}
+        const baud=parseInt(document.getElementById('usbBaudSelect').value);
+        try{usbPort=await navigator.serial.requestPort();await usbPort.open({baudRate:baud,bufferSize:32768});}
+        catch(e){alert('Port error: '+e.message);try{usbPort&&await usbPort.close();}catch{}return;}
+    }
+    btn.disabled=true;btn.innerHTML='<span class="spinner"></span>...';setStatus('Compiling model...');
+    try{
+        let sa=null;
+        await headModel.save(tf.io.withSaveHandler(async a=>{sa=a;return{modelArtifactsInfo:{dateSaved:new Date()}};}));
+        if(!sa)throw new Error('Failed to save model');
+        const mj={modelTopology:sa.modelTopology,weightsManifest:[{paths:['weights.bin'],weights:sa.weightSpecs}],format:'layers-model',generatedBy:'TensorFlow.js',convertedBy:null};
+        const fd=new FormData();
+        fd.append('model_json',new Blob([JSON.stringify(mj)],{type:'application/json'}),'model.json');
+        fd.append('weights_bin',new Blob([sa.weightData],{type:'application/octet-stream'}),'weights.bin');
+        fd.append('labels',JSON.stringify(classes.map(c=>c.name)));
+        
+        btn.innerHTML='<span class="spinner"></span>Converting...';
+        setStatus('Deploying: sending model to backend for ONNX → .kmodel conversion (1–2 min)...');
+        console.log('[DEPLOY-K230] Backend URL:', getBackendUrl());
+        console.log('[DEPLOY-K230] Sending to:', getBackendUrl() + '/convert-voice');
+        
+        const resp = await postToBackend('convert-voice', fd);
+        const zip = await JSZip.loadAsync(await resp.blob());
+        const kf=zip.file('model.kmodel'),lf=zip.file('labels.txt');
+        if(!kf||!lf)throw new Error('Invalid zip from server');
+        const kBlob=await kf.async('blob'),lBlob=await lf.async('blob');
+        if(method==='wifi'){
+            const ip=document.getElementById('k230IpInput').value.trim()||'192.168.4.1';
+            const pt=document.getElementById('k230PortInput').value.trim()||'8080';
+            const url='http://'+ip+':'+pt+'/upload';setStatus('Pushing to K230 ('+ip+')...');
+            const r1=await fetch(url,{method:'POST',headers:{'X-Filename':'voice_v2_model.kmodel'},body:kBlob});if(!r1.ok)throw new Error('HTTP '+r1.status);
+            await sleep(1500);
+            const r2=await fetch(url,{method:'POST',headers:{'X-Filename':'voice_v2_labels.txt'},body:lBlob});if(!r2.ok)throw new Error('HTTP '+r2.status);
+            setStatus('Wi-Fi deployment complete!');alert('Deployed via Wi-Fi!\n\nFiles in /sdcard/kmodel/');
+        }else{
+            const baud=parseInt(document.getElementById('usbBaudSelect').value);
+            resetUsbPanel();showUsbPanel(true);
+            port=usbPort;portReader=usbPort.readable.getReader();portWriter=usbPort.writable.getWriter();connected=true;usbPort=null;
+            rxPump();usbLog('Port @ '+baud+' baud','ok');
+            try{
+                await enterRawREPL();
+                const kArr=new Uint8Array(await kBlob.arrayBuffer());const lArr=new Uint8Array(await lBlob.arrayBuffer());
+                await ensureDir('/sdcard/kmodel/');usbLog('Dir ready','ok');
+                await writeFileOnBoard('/sdcard/kmodel/voice_v2_model.kmodel',kArr,p=>{usbSetPct(1,p);setStatus('model: '+Math.round(p*100)+'%');});
+                usbSetPct(1,1);usbLog('model OK','ok');
+                await writeFileOnBoard('/sdcard/kmodel/voice_v2_labels.txt',lArr,p=>{usbSetPct(2,p);});
+                usbSetPct(2,1);usbLog('labels OK','ok');await exitRawREPL();usbLog('Done','ok');
+            }finally{await cleanupPort();}
+            setStatus('USB deployment complete!');alert('Deployed via USB!\nFiles in /sdcard/kmodel/');
+        }
+    }catch(e){
+        console.error(e);usbLog('Error: '+e.message,'err');alert('Deploy Failed: '+e.message);setStatus('Deploy failed: '+e.message);
+        if(connected)await cleanupPort();if(usbPort){try{await usbPort.close();}catch{}usbPort=null;}
+    }finally{btn.disabled=false;btn.innerHTML=orig;}
+}
+
+// ── Full voice model export helper ─────────────────────────────────────
+function buildFullVoiceModel(){
+    if(!backbone||!embedExtractor||!headModel){
+        throw new Error('Voice backbone, embed extractor, and trained head model are required');
+    }
+    const embeddingOutput = Array.isArray(embedExtractor.outputs)
+        ? embedExtractor.outputs[0]
+        : embedExtractor.outputs;
+    const fullOutput = headModel.apply(embeddingOutput);
+    return tf.model({inputs: backbone.inputs, outputs: fullOutput});
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+async function exportKmodel(){
+    if(!trained||!headModel){alert('Train first!');return;}
+    const btn=document.getElementById('exportBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Building...';setStatus('Exporting: building full model...');
+    try{
+        const fullModel = buildFullVoiceModel();
+        let sa=null;
+        await fullModel.save(tf.io.withSaveHandler(async a=>{sa=a;return{modelArtifactsInfo:{dateSaved:new Date()}};}));
+        // Note: Do not dispose fullModel since its layers are shared with headModel/backbone
+
+        const mj={modelTopology:sa.modelTopology,weightsManifest:[{paths:['weights.bin'],weights:sa.weightSpecs}],format:'layers-model',generatedBy:'TensorFlow.js',convertedBy:null};
+        const fd=new FormData();
+        fd.append('model_json',new Blob([JSON.stringify(mj)],{type:'application/json'}),'model.json');
+        fd.append('weights_bin',new Blob([sa.weightData],{type:'application/octet-stream'}),'weights.bin');
+        fd.append('labels',JSON.stringify(classes.map(c=>c.name)));
+
+        btn.innerHTML='<span class="spinner"></span>Converting...';
+        setStatus('Exporting: sending to backend for ONNX → kmodel conversion (this may take 1–2 min)...');
+        console.log('[EXPORT] Sending to backend:', getBackendUrl() + '/convert-voice');
+        
+        const resp = await postToBackend('convert-voice', fd);
+        const zipBlob = await resp.blob();
+        const ct = resp.headers.get('content-type')||'';
+        
+        console.log('[EXPORT] Backend response received. Content-Type:', ct);
+        
+        if(ct.includes('application/json')){
+            const errJson = await JSON.parse(await zipBlob.text()).catch(()=>null);
+            throw new Error(errJson?.error || 'Backend returned error');
+        }
+
+        if(ct.includes('zip')){
+            console.log('[EXPORT] Unpacking zip from backend...');
+            const zip = await JSZip.loadAsync(zipBlob);
+            const kf = zip.file('model.kmodel');
+            const lf = zip.file('labels.txt');
+            if(!kf || !lf) throw new Error('Backend zip missing kmodel or labels');
+            
+            btn.innerHTML='<span class="spinner"></span>Downloading...';
+            setStatus('Exporting: downloading model.kmodel (converted at backend)...');
+            if(kf) downloadBlob(await kf.async('blob'),'voice_v2_model.kmodel');
+            await sleep(400);
+            if(lf) downloadBlob(await lf.async('blob'),'voice_v2_labels.txt');
+        } else {
+            throw new Error('Backend did not return ZIP: ' + ct);
+        }
+
+        setStatus('✅ Export complete: voice_v2_model.kmodel + voice_v2_labels.txt downloaded');
+        alert('✅ Files downloaded (converted by backend).\n\nCopy to /sdcard/kmodel/ on K230.');
+    }catch(e){
+        console.error('[EXPORT] Error:', e.message);
+        alert('❌ Export failed:\n\n' + e.message + '\n\nMake sure backend is running at:\n' + getBackendUrl());
+        setStatus('Export failed: ' + e.message);
+    }
+    finally{btn.disabled=false;btn.innerHTML='Export .kmodel (Local)';}
+}
+
+async function exportVoiceTflite(){
+    if(!trained||!headModel){alert('Train first!');return;}
+    const btn=document.getElementById('exportEsp32Btn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Building...';setStatus('Exporting: building full model...');
+    try{
+        const fullModel = buildFullVoiceModel();
+        let sa=null;
+        await fullModel.save(tf.io.withSaveHandler(async a=>{sa=a;return{modelArtifactsInfo:{dateSaved:new Date()}};}));
+        // Note: Do not dispose fullModel since its layers are shared with headModel/backbone
+
+        const mj={modelTopology:sa.modelTopology,weightsManifest:[{paths:['weights.bin'],weights:sa.weightSpecs}],format:'layers-model',generatedBy:'TensorFlow.js',convertedBy:null};
+        const fd=new FormData();
+        fd.append('model_json',new Blob([JSON.stringify(mj)],{type:'application/json'}),'model.json');
+        fd.append('weights_bin',new Blob([sa.weightData],{type:'application/octet-stream'}),'weights.bin');
+        fd.append('labels',JSON.stringify(classes.map(c=>c.name)));
+
+        btn.innerHTML='<span class="spinner"></span>Converting...';
+        setStatus('Exporting: sending to backend for ONNX → tflite conversion (this may take 1–2 min)...');
+        console.log('[EXPORT-ESP32] Sending to backend:', getBackendUrl() + '/convert-voice-esp32');
+        
+        const resp = await postToBackend('convert-voice-esp32', fd);
+        const zipBlob = await resp.blob();
+        const ct = resp.headers.get('content-type')||'';
+        
+        console.log('[EXPORT-ESP32] Backend response received. Content-Type:', ct);
+        
+        if(ct.includes('application/json')){
+            const errJson = await JSON.parse(await zipBlob.text()).catch(()=>null);
+            throw new Error(errJson?.error || 'Backend returned error');
+        }
+
+        if(ct.includes('zip')){
+            console.log('[EXPORT-ESP32] Unpacking zip from backend...');
+            const zip = await JSZip.loadAsync(zipBlob);
+            const kf = zip.file('model.tflite');
+            const lf = zip.file('labels.txt');
+            if(!kf || !lf) throw new Error('Backend zip missing model.tflite or labels.txt');
+            
+            btn.innerHTML='<span class="spinner"></span>Downloading...';
+            setStatus('Exporting: downloading voice_v2_model.tflite (converted at backend)...');
+            if(kf) downloadBlob(await kf.async('blob'),'voice_v2_model.tflite');
+            await sleep(400);
+            if(lf) downloadBlob(await lf.async('blob'),'voice_v2_labels.txt');
+        } else {
+            downloadBlob(zipBlob, 'voice_v2_model.tflite');
+            await sleep(400);
+            downloadBlob(new Blob([classes.map(c=>c.name).join('\n')], {type: 'text/plain'}), 'voice_v2_labels.txt');
+        }
+
+        setStatus('✅ Export complete: voice_v2_model.tflite + voice_v2_labels.txt downloaded');
+        alert('✅ Files downloaded (converted by backend).\n\nCopy to your ESP32-S3 firmware directory.');
+    }catch(e){
+        console.error('[EXPORT-ESP32] Error:', e.message);
+        alert('❌ Export failed:\n\n' + e.message + '\n\nMake sure backend is running at:\n' + getBackendUrl());
+        setStatus('Export failed: ' + e.message);
+    }
+    finally{btn.disabled=false;btn.innerHTML='Export .tflite (ESP32-S3)';}
+}
+
+// ── Go Back ───────────────────────────────────────────────────────────────
+function goBack(){
+    stopMic();stopInference();
+    const payload=JSON.stringify({type:'CLOSE_VOICE_TRAIN_V2'});
+    if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(payload);}
+    else if(window.parent!==window){window.parent.postMessage(payload,'*');window.opener?.postMessage(payload,'*');}
+    else{window.location.href='train_picker.html';}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+    classes.forEach(c=>{embeddings[c.name]=[];classAudio[c.name]=[];});
+    setClipLen(1500);
+    render();
+    loadBackbone();
+});
+</script>
+</body>
+</html>
