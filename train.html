@@ -303,11 +303,11 @@
             border-radius: 8px;
             background: #000;
             display: block;
-            transform: scaleX(-1); /* Mirror live webcam feed */
+            transform: scaleX(-1);
         }
 
         .crop-overlay {
-            display: none; /* Hide dashed crop overlay box */
+            display: none;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -634,7 +634,7 @@
             object-fit: cover;
             background: #0f172a;
             display: none;
-            transform: scaleX(-1); /* Mirror live webcam feed */
+            transform: scaleX(-1);
         }
 
         .no-cam-placeholder {
@@ -792,6 +792,10 @@
 
         .btn-export-arduino {
             background: #16a34a;
+        }
+
+        .btn-deploy-esp32 {
+            background: #eab308;
         }
 
         .btn-serial {
@@ -1124,6 +1128,9 @@
                     <button class="action-btn btn-export-arduino" id="exportArduinoBtn" onclick="exportArduinoZip()" disabled>
                         📦 Export Arduino ZIP (9 files)
                     </button>
+                    <button class="action-btn btn-deploy-esp32" id="deployEsp32Btn" onclick="deployToEsp32()" disabled>
+                        🔌 Deploy to ESP32 (WebSerial)
+                    </button>
 
                     <div class="serial-panel" id="serialPanel">
                         <div class="serial-bar">
@@ -1209,6 +1216,31 @@
 
     </div>
 
+    <!-- Beautiful modern popup modal for ESP32 RST guidance -->
+    <div id="rstModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px); z-index:99999; justify-content:center; align-items:center; transition: opacity 0.3s ease;">
+        <div style="background:#ffffff; border-radius:20px; max-width:440px; width:90%; padding:30px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); border:1px solid #f1f5f9; text-align:center;">
+            <div style="background:#fef9c3; border-radius:50%; width:60px; height:60px; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                <span style="font-size:28px;">🔌</span>
+            </div>
+            <h3 style="margin-bottom:12px; color:#0f172a; font-size:20px; font-weight:800; font-family:system-ui, -apple-system, sans-serif;">Prepare ESP32 Board</h3>
+            <p style="font-size:14px; color:#475569; margin-bottom:24px; line-height:1.6; font-family:system-ui, -apple-system, sans-serif; text-align:left;">
+                Your 19 KB model is trained and ready! To prevent the board from starting its old model and locking the connection, please follow these steps:
+                <br><br>
+                1. <strong>Press and release</strong> the physical <strong>RST (Reset)</strong> button on your board now.
+                <br>
+                2. Click <strong>Connect & Upload</strong> below immediately!
+            </p>
+            <div style="display:flex; gap:12px;">
+                <button id="rstCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition: background 0.2s;">
+                    Cancel
+                </button>
+                <button id="rstModalBtn" style="flex:2; background:#eab308; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition: background 0.2s; box-shadow:0 4px 6px -1px rgba(234,179,8,0.3);">
+                    Connect & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         'use strict';
 
@@ -1217,22 +1249,24 @@
         // If served via Expo dev server (port 8081) or any other non-backend origin → use Docker directly on port 5001.
         (function () {
             const origin = window.location.origin;
-            const isCloudflare = origin && origin.includes('trycloudflare.com');
-            const isWindowsAgent = origin && origin.includes('localhost:5002');
-            let url;
-            if (isCloudflare || isWindowsAgent) {
-                url = origin; // real backend origin — use as-is
-            } else {
-                url = 'http://localhost:5001'; // Expo / file / other — default to Docker compiler directly
+            let url = 'http://localhost:5001'; // Default local Docker
+            if (origin && !origin.includes('file://') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+                url = origin; // Use origin if hosted remotely (e.g. Google Cloud)
             }
-            document.getElementById('backendUrlInput').value = url;
+            const input = document.getElementById('backendUrlInput');
+            if (input) input.value = url;
         })();
 
         function getBackendUrl() {
             const input = document.getElementById('backendUrlInput');
-            let url = input?.value?.trim() || window.location.origin || 'http://localhost:5002';
-            if (url.endsWith('/')) url = url.slice(0, -1);
-            return url;
+            let val = input?.value?.trim();
+            if (val) return val.endsWith('/') ? val.slice(0, -1) : val;
+            
+            let origin = window.location.origin;
+            if (!origin || origin === 'null' || origin.startsWith('file')) {
+                return 'http://localhost:5001';
+            }
+            return origin;
         }
 
         async function postToBackend(endpoint, formData) {
@@ -1259,7 +1293,8 @@
             }
         }
 
-        const MOBILENET_V3_URL = './offline_libs/models/mobilenet/model.json';
+        const MOBILENET_V3_URL =
+            './offline_libs/models/mobilenet/model.json';
 
         // ── Crop size state (intermediate canvas before model resize) ──
         let CROP_SIZE = 320; // default: balanced
@@ -1501,7 +1536,7 @@
         }
 
         function updateButtons() {
-            ['deployHeaderBtn', 'deployCardBtn', 'deployK230Btn', 'exportBtn', 'exportEsp32Btn', 'exportArduinoBtn', 'testBtn']
+            ['deployHeaderBtn', 'deployCardBtn', 'deployK230Btn', 'exportBtn', 'exportEsp32Btn', 'exportArduinoBtn', 'deployEsp32Btn', 'testBtn']
                 .forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = !trained;
@@ -1527,7 +1562,8 @@
         // BACKGROUND REMOVAL — uses CROP_SIZE for intermediate canvas
         // ══════════════════════════════════════════════════════════════
         function applyBackgroundFade(canvas) {
-            // No-op to remove the grey shade and keep normal photos
+            // Disabled circular background blur/fade per user request
+            return;
         }
 
         // ── Center-crop source into canvas at CROP_SIZE ──────────────
@@ -1541,18 +1577,16 @@
                 srcW = source.naturalWidth || source.width || CROP_SIZE;
                 srcH = source.naturalHeight || source.height || CROP_SIZE;
             }
-            // Capture full center square of photo instead of cropping to 70%
             const cropSize = Math.min(srcW, srcH);
             const srcX = (srcW - cropSize) / 2;
             const srcY = (srcH - cropSize) / 2;
             
             ctx.save();
             if (source instanceof HTMLVideoElement) {
-                // Mirror the video capture horizontally to match mirrored live preview
+                // Mirror the canvas horizontally to match the mirrored CSS video preview
                 ctx.translate(canvas.width, 0);
                 ctx.scale(-1, 1);
             }
-            
             // Draw into canvas at its own size (CROP_SIZE × CROP_SIZE)
             ctx.drawImage(
                 source, srcX, srcY, cropSize, cropSize,
@@ -1589,7 +1623,9 @@
         async function loadMobileNetV3() {
             if (mobileNetV3) return mobileNetV3;
             setStatus('Loading MobileNet V3 from TF Hub...');
-            mobileNetV3 = await tf.loadGraphModel(MOBILENET_V3_URL);
+            mobileNetV3 = await tf.loadGraphModel(
+                MOBILENET_V3_URL
+            );
             return mobileNetV3;
         }
 
@@ -1805,14 +1841,18 @@
             </div>
             <div style="font-size:11px;color:#64748b;
                 text-align:center;margin-bottom:6px;">
-                📐 Capture Canvas Size &nbsp;·&nbsp;
+                📐 Full square crop &nbsp;·&nbsp;
                 <b>${CROP_SIZE}×${CROP_SIZE}px</b>
             </div>
             <div class="cam-btns">
-                <button class="hold-btn" id="capBtn-${idx}"
+                <button class="hold-btn"
                     style="background:${cls.color}"
-                    onclick="captureMultiple(${idx})"
-                >Capture 5 Images</button>
+                    onmousedown="startHold(${idx})"
+                    onmouseup="stopHold()"
+                    onmouseleave="stopHold()"
+                    ontouchstart="startHold(${idx})"
+                    ontouchend="stopHold()"
+                >Hold to Capture</button>
                 <button class="stop-cam-btn"
                     onclick="stopCapture()">Stop</button>
             </div>` : k230CamIdx === idx ? `
@@ -1823,13 +1863,17 @@
             </div>
             <div style="font-size:11px;color:#64748b;
                 text-align:center;margin-bottom:6px;">
-                📡 K230 Cam (${k230CamPort}) &nbsp;·&nbsp; <b>${CROP_SIZE}×${CROP_SIZE}px</b>
+                📡 K230 Cam (${k230CamPort}) &nbsp;·&nbsp; <b>${CROP_SIZE}×${CROP_SIZE}px</b> square crop
             </div>
             <div class="cam-btns">
-                <button class="hold-btn" id="capBtnK230-${idx}"
+                <button class="hold-btn"
                     style="background:${cls.color}"
-                    onclick="captureK230Multiple(${idx})"
-                >Capture 5 Images</button>
+                    onmousedown="startK230Hold(${idx})"
+                    onmouseup="stopK230Hold()"
+                    onmouseleave="stopK230Hold()"
+                    ontouchstart="startK230Hold(${idx})"
+                    ontouchend="stopK230Hold()"
+                >Hold to Capture</button>
                 <button class="stop-cam-btn"
                     onclick="stopK230Capture()">Stop</button>
             </div>` : `
@@ -1985,41 +2029,15 @@
             renderStats();
         }
 
-        function checkSecureContext() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                let msg = "Camera access requires a Secure Context (HTTPS or localhost).\n\n";
-                msg += "If you are running Expo on a physical device over Wi-Fi:\n";
-                msg += "1. Run your Expo CLI using the '--tunnel' flag (e.g. `npx expo start --tunnel`). This will generate a secure `https://` address.\n";
-                msg += "2. If accessing via a web browser on a tablet/phone (http://192.168.x.x), open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Google Chrome, add your URL to the text area, enable the flag, and restart Chrome.";
-                alert(msg);
-                return false;
-            }
-            return true;
-        }
-
-        async function getCameraStream(facingMode = 'user', width = 320, height = 320) {
-            try {
-                return await navigator.mediaDevices.getUserMedia({
-                    video: { width: width, height: height, facingMode: facingMode }
-                });
-            } catch (e) {
-                console.warn("Strict camera constraints failed, trying standard video:", e);
-                try {
-                    return await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (err) {
-                    throw err;
-                }
-            }
-        }
-
         // ══════════════════════════════════════════════════════════════
         // WEBCAM CAPTURE
         // ══════════════════════════════════════════════════════════════
         async function startCapture(classIdx) {
-            if (!checkSecureContext()) return;
             try {
                 if (activeCamIdx !== null) stopCapture();
-                const stream = await getCameraStream('user', 320, 320);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 320, facingMode: 'user' }
+                });
                 activeCamStream = stream;
                 activeCamIdx = classIdx;
                 activeCamType = 'webcam';
@@ -2082,25 +2100,18 @@
             saveState();
         }
 
-        function captureMultiple(classIdx) {
-            const btn = document.getElementById(`capBtn-${classIdx}`);
-            if (btn) { btn.disabled = true; btn.textContent = 'Capturing...'; }
-            let count = 0;
-            const total = 5;
-            function doCapture() {
-                if (count >= total) {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Capture 5 Images'; }
-                    return;
-                }
-                captureFrame(classIdx);
-                count++;
-                captureTimer = setTimeout(doCapture, 150);
-            }
-            doCapture();
+        function startHold(classIdx) {
+            captureFrame(classIdx);
+            captureTimer = setInterval(() => captureFrame(classIdx), 120);
+        }
+
+        function stopHold() {
+            clearInterval(captureTimer);
+            captureTimer = null;
         }
 
         function stopCapture() {
-            if (captureTimer) { clearTimeout(captureTimer); captureTimer = null; }
+            stopHold();
             if (activeCamStream) {
                 activeCamStream.getTracks().forEach(t => t.stop());
                 activeCamStream = null;
@@ -2286,22 +2297,8 @@
         }
 
         let k230HoldTimer = null;
-        function captureK230Multiple(idx) {
-            const btn = document.getElementById(`capBtnK230-${idx}`);
-            if (btn) { btn.disabled = true; btn.textContent = 'Capturing...'; }
-            let count = 0;
-            const total = 5;
-            function doCapture() {
-                if (count >= total) {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Capture 5 Images'; }
-                    return;
-                }
-                k230CaptureFrame(idx);
-                count++;
-                k230HoldTimer = setTimeout(doCapture, 150);
-            }
-            doCapture();
-        }
+        function startK230Hold(idx) { k230CaptureFrame(idx); k230HoldTimer = setInterval(() => k230CaptureFrame(idx), 150); }
+        function stopK230Hold() { clearInterval(k230HoldTimer); k230HoldTimer = null; }
 
         async function k230CaptureFrame(idx) {
             if (!k230LatestFrame) return;
@@ -2394,7 +2391,9 @@
                 showProgress(5, 'Loading MobileNet V3 from TF Hub...');
                 showProgress(6, 'This may take 15-30 seconds...');
 
-                mobileNetV3 = await tf.loadGraphModel(MOBILENET_V3_URL);
+                mobileNetV3 = await tf.loadGraphModel(
+                    MOBILENET_V3_URL
+                );
 
                 showProgress(12, 'Initializing V3 model...');
                 const testTensor = tf.zeros([1, 224, 224, 3]);
@@ -2550,10 +2549,11 @@
             if (!trained || !mobileNetV3 || !headModel) {
                 alert('Train first!'); return;
             }
-            if (!checkSecureContext()) return;
 
             try {
-                const stream = await getCameraStream('user', 320, 320);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 320 }
+                });
 
                 const video = document.getElementById('testVideo');
                 const placeholder = document.getElementById('camPlaceholder');
@@ -2850,75 +2850,140 @@
         // EXPORT .tflite (ESP32-S3)
         // ══════════════════════════════════════════════════════════════
         async function exportTflite() {
-            if (!trained || !headModel) { alert('Train first!'); return; }
+            if (classes.length < 2) { alert('Need at least 2 classes!'); return; }
+            const emptyClass = classes.find(c => c.images.length < 10);
+            if (emptyClass) { alert(`"${emptyClass.name}" needs at least 10 images.\n\nMore images = better accuracy. Aim for 30+ per class.`); return; }
 
             const btn = document.getElementById('exportEsp32Btn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span>Building...';
-            setStatus('Exporting INT8 TFLite model for ESP32-S3...');
+            btn.innerHTML = '<span class="spinner"></span>Loading images...';
 
             try {
+                const nc      = classes.length;
+                const labels  = classes.map(c => c.name);
+                const skName  = 'esp32s3_classifier';
+                const inputSize = 96;
+
+                try { await tf.setBackend('webgl'); } catch (_) {}
+
+                // ── Step 1: convert all images to 96×96 grayscale tensors ──────
+                let totalUsed = 0;
+                const xs = [], ys = [];
+                for (let ci = 0; ci < nc; ci++) {
+                    let imgsToUse = classes[ci].images;
+                    if (imgsToUse.length > 40) {
+                        imgsToUse = imgsToUse.slice().sort(() => 0.5 - Math.random()).slice(0, 40);
+                    }
+                    totalUsed += imgsToUse.length;
+                    for (const imgObj of imgsToUse) {
+                        const url = imgObj.url || imgObj;
+                        const t = await _imgToGray96Tensor(url);
+                        xs.push(t); ys.push(ci);
+                    }
+                }
+                const xAll = tf.concat(xs, 0);
+                const yAll = tf.tensor1d(ys, 'float32');
+                xs.forEach(t => t.dispose());
+
+                // ── Step 2: train small CNN in-browser ──────────────────────────
+                const batchSize = Math.max(4, Math.min(16, Math.floor(totalUsed / 4)));
+                const epochs    = 80;
+                setStatus(`Training small CNN (${totalUsed} images, ${epochs} epochs, batch ${batchSize})...`);
+                const smallCnn = _buildSmallCnn(nc);
+                smallCnn.compile({
+                    optimizer: tf.train.adam(0.001),
+                    loss: 'sparseCategoricalCrossentropy',
+                    metrics: ['accuracy']
+                });
+
+                let lastAcc = '0';
+                await smallCnn.fit(xAll, yAll, {
+                    epochs, batchSize, shuffle: true,
+                    callbacks: {
+                        onEpochEnd(ep, logs) {
+                            lastAcc = ((logs.accuracy ?? logs.acc ?? 0) * 100).toFixed(1);
+                            btn.innerHTML = `<span class="spinner"></span>Epoch ${ep+1}/${epochs} — acc ${lastAcc}%`;
+                        }
+                    }
+                });
+
+                // Accuracy checks
+                const predTensor = smallCnn.predict(xAll);
+                const predData   = await predTensor.array();
+                predTensor.dispose();
+                const perClassCorrect = new Array(nc).fill(0);
+                const perClassTotal   = new Array(nc).fill(0);
+                for (let i = 0; i < ys.length; i++) {
+                    const trueIdx = ys[i];
+                    const predIdx = predData[i].indexOf(Math.max(...predData[i]));
+                    perClassTotal[trueIdx]++;
+                    if (predIdx === trueIdx) perClassCorrect[trueIdx]++;
+                }
+
+                const poorClasses = [];
+                for (let ci = 0; ci < nc; ci++) {
+                    const acc = perClassCorrect[ci] / perClassTotal[ci];
+                    if (acc < 0.70) poorClasses.push(`"${labels[ci]}" (${(acc*100).toFixed(0)}%)`);
+                }
+                if (poorClasses.length > 0) {
+                    const go = confirm(
+                        `⚠️ Low training accuracy:\n${poorClasses.join('\n')}\n\n` +
+                        `Export anyway?`
+                    );
+                    if (!go) {
+                        xAll.dispose(); yAll.dispose(); smallCnn.dispose();
+                        btn.disabled = false;
+                        btn.innerHTML = 'Export .tflite (ESP32-S3)';
+                        return;
+                    }
+                }
+
+                xAll.dispose(); yAll.dispose();
+                setStatus(`CNN trained — overall acc ${lastAcc}%. Exporting...`);
+
+                // ── Step 3: export CNN as TF.js artifacts ────────────────────────
                 let savedArtifacts = null;
-                await headModel.save(
-                    tf.io.withSaveHandler(async (artifacts) => {
-                        savedArtifacts = artifacts;
-                        return { modelArtifactsInfo: { dateSaved: new Date() } };
-                    })
-                );
-                if (!savedArtifacts) throw new Error('Failed to capture artifacts');
+                await smallCnn.save(tf.io.withSaveHandler(async artifacts => {
+                    savedArtifacts = artifacts;
+                    return { modelArtifactsInfo: { dateSaved: new Date() } };
+                }));
+                smallCnn.dispose();
+                if (!savedArtifacts) throw new Error('Failed to capture CNN artifacts');
 
                 const modelJson = {
                     modelTopology: savedArtifacts.modelTopology,
-                    weightsManifest: [{
-                        paths: ['weights.bin'],
-                        weights: savedArtifacts.weightSpecs
-                    }],
-                    format: 'layers-model',
-                    generatedBy: 'TensorFlow.js',
-                    convertedBy: null
+                    weightsManifest: [{ paths: ['weights.bin'], weights: savedArtifacts.weightSpecs }],
+                    format: 'layers-model', generatedBy: 'TensorFlow.js', convertedBy: null
                 };
 
+                // ── Step 4: send to /convert-esp32-lite → INT8 TFLite ───────────
                 const formData = new FormData();
                 formData.append('model_json',
-                    new Blob([JSON.stringify(modelJson)], { type: 'application/json' }),
-                    'model.json');
+                    new Blob([JSON.stringify(modelJson)], { type: 'application/json' }), 'model.json');
                 formData.append('weights_bin',
-                    new Blob([savedArtifacts.weightData], { type: 'application/octet-stream' }),
-                    'weights.bin');
-                formData.append('labels', JSON.stringify(classes.map(c => c.name)));
-                formData.append('input_size', String(CROP_SIZE));
+                    new Blob([savedArtifacts.weightData], { type: 'application/octet-stream' }), 'weights.bin');
+                formData.append('labels', JSON.stringify(labels));
+                formData.append('input_size', '96');
 
-                btn.innerHTML = '<span class="spinner"></span>Converting...';
-                setStatus(`Exporting: sending to backend for ${CROP_SIZE}×${CROP_SIZE} INT8 TFLite (~30s)...`);
-                console.log('[ESP32-EXPORT] Backend URL:', getBackendUrl());
-                console.log('[ESP32-EXPORT] Sending to:', getBackendUrl() + '/convert-esp32');
+                btn.innerHTML = '<span class="spinner"></span>Converting to TFLite INT8...';
+                setStatus('Backend: converting to INT8 TFLite (~20s)...');
 
-                const resp = await postToBackend('convert-esp32', formData);
+                const resp = await postToBackend('convert-esp32-lite', formData);
                 const zipBlob = await resp.blob();
                 const contentType = resp.headers.get('content-type') || '';
 
-                console.log('[ESP32-EXPORT] Backend response OK. Content-Type:', contentType);
-
-                btn.innerHTML = '<span class="spinner"></span>Downloading...';
-                setStatus('Exporting: downloading converted files from backend...');
-
                 if (contentType.includes('zip')) {
-                    const zip = await JSZip.loadAsync(zipBlob);
-                    const tf = zip.file('model.tflite');
-                    if (tf) downloadBlob(await tf.async('blob'), 'model.tflite');
-                    await new Promise(r => setTimeout(r, 500));
-                    const lf = zip.file('labels.txt');
-                    if (lf) downloadBlob(await lf.async('blob'), 'labels.txt');
+                    downloadBlob(zipBlob, 'tiny_image_esp32_model.zip');
                 } else {
                     throw new Error('Backend did not return ZIP');
                 }
 
-                setStatus(`✅ Export complete: model.tflite (${CROP_SIZE}×${CROP_SIZE} INT8) and labels.txt downloaded (backend-converted)`);
-                alert(`✅ Two files downloaded (converted by backend):\n\n1. model.tflite (INT8, input: ${CROP_SIZE}×${CROP_SIZE})\n2. labels.txt\n\nFlash model.tflite to /spiffs/ on ESP32-S3.`);
+                setStatus(`✅ Export complete: tiny_image_esp32_model.zip downloaded successfully!`);
+                alert(`✅ tiny_image_esp32_model.zip downloaded successfully!\n\nThis ZIP contains the 19 KB optimized model and class labels.\n\nYou can keep this ZIP as a backup or upload it directly to your ESP32 board!`);
 
             } catch (e) {
                 console.error('[ESP32-EXPORT] Error:', e.message);
-                alert('❌ Export failed:\n\n' + e.message + '\n\nMake sure backend is running at:\n' + getBackendUrl());
+                alert('❌ Export failed:\n\n' + e.message);
                 setStatus('ESP32-S3 export failed: ' + e.message);
             } finally {
                 btn.disabled = false;
@@ -2978,43 +3043,22 @@
         }
 
         async function exportArduinoZip() {
+            await exportArduinoCore(false);
+        }
+
+        async function deployToEsp32() {
+            await exportArduinoCore(true);
+        }
+
+        async function exportArduinoCore(isSerialUpload) {
             if (classes.length < 2) { alert('Need at least 2 classes!'); return; }
             const emptyClass = classes.find(c => c.images.length < 10);
             if (emptyClass) { alert(`"${emptyClass.name}" needs at least 10 images.\n\nMore images = better accuracy. Aim for 30+ per class.`); return; }
 
-            const btn = document.getElementById('exportArduinoBtn');
+            const btn = document.getElementById(isSerialUpload ? 'deployEsp32Btn' : 'exportArduinoBtn');
             btn.disabled = true;
 
-            // ── Pre-connect serial NOW — Chrome's user activation expires in ~5 s,
-            // so requestPort() must be called immediately from the click handler before
-            // any long-running awaits (training, TFLite conversion).
             let _serialReady = false;
-            if ('serial' in navigator) {
-                try {
-                    btn.innerHTML = '<span class="spinner"></span>Select DFR1154 serial port…';
-                    try { _dfr1154.reader?.cancel(); }      catch (_) {}
-                    try { _dfr1154.writer?.releaseLock(); } catch (_) {}
-                    try { _dfr1154.reader?.releaseLock(); } catch (_) {}
-                    try { await _dfr1154.port?.close(); }   catch (_) {}
-                    _dfr1154.rxBuf  = '';
-                    _dfr1154.port   = await navigator.serial.requestPort();
-                    await _dfr1154.port.open({ baudRate: 115200, bufferSize: 8192 });
-                    try { await _dfr1154.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (_) {}
-                    _dfr1154.reader = _dfr1154.port.readable.getReader();
-                    _dfr1154.writer = _dfr1154.port.writable.getWriter();
-                    _serialReady    = true;
-                    document.getElementById('serialPanel').classList.add('active');
-                    dfr1154SetStatus('Serial connected — will auto-upload after training…', true);
-                    dfr1154Log('Port opened. Auto-upload begins after training and conversion.');
-                } catch (e) {
-                    // NotFoundError / AbortError = user cancelled the port picker → skip serial
-                    if (e.name !== 'NotFoundError' && e.name !== 'AbortError') {
-                        dfr1154Log('Serial connect error: ' + e.message);
-                        document.getElementById('serialPanel').classList.add('active');
-                        dfr1154SetStatus('Serial error: ' + e.message, false);
-                    }
-                }
-            }
 
             btn.innerHTML = '<span class="spinner"></span>Loading images...';
 
@@ -3025,12 +3069,18 @@
                 const dateStr = new Date().toISOString().slice(0, 10);
                 const inputSize = ARDUINO_INPUT_SIZE;
 
+                try { await tf.setBackend('webgl'); } catch (_) {}
+
                 // ── Step 1: convert all images to 96×96 grayscale tensors ──────
-                const totalImgs = classes.reduce((s,c)=>s+c.images.length,0);
-                setStatus(`Converting ${totalImgs} images to 96×96 grayscale...`);
+                let totalUsed = 0;
                 const xs = [], ys = [];
                 for (let ci = 0; ci < nc; ci++) {
-                    for (const imgObj of classes[ci].images) {
+                    let imgsToUse = classes[ci].images;
+                    if (imgsToUse.length > 40) {
+                        imgsToUse = imgsToUse.slice().sort(() => 0.5 - Math.random()).slice(0, 40);
+                    }
+                    totalUsed += imgsToUse.length;
+                    for (const imgObj of imgsToUse) {
                         const url = imgObj.url || imgObj;
                         const t = await _imgToGray96Tensor(url);
                         xs.push(t); ys.push(ci);
@@ -3042,9 +3092,9 @@
 
                 // ── Step 2: train small CNN in-browser ──────────────────────────
                 // Batch size must be ≤ total images; too-large batches hurt small datasets.
-                const batchSize = Math.max(4, Math.min(16, Math.floor(totalImgs / 4)));
-                const epochs    = Math.max(30, Math.min(80, Math.ceil(1000 / totalImgs)));
-                setStatus(`Training small CNN (${totalImgs} images, ${epochs} epochs, batch ${batchSize})...`);
+                const batchSize = Math.max(4, Math.min(16, Math.floor(totalUsed / 4)));
+                const epochs    = 80;
+                setStatus(`Training small CNN (${totalUsed} images, ${epochs} epochs, batch ${batchSize})...`);
                 const smallCnn = _buildSmallCnn(nc);
                 smallCnn.compile({
                     optimizer: tf.train.adam(0.001),
@@ -3092,7 +3142,7 @@
                     if (!go) {
                         xAll.dispose(); yAll.dispose(); smallCnn.dispose();
                         btn.disabled = false;
-                        btn.innerHTML = '📦 Export Arduino ZIP (9 files)';
+                        btn.innerHTML = isSerialUpload ? '🔌 Deploy to ESP32 (WebSerial)' : '📦 Export Arduino ZIP (9 files)';
                         return;
                     }
                 }
@@ -3137,23 +3187,29 @@
                 const ct = resp.headers.get('content-type') || '';
                 if (ct.includes('zip')) {
                     const rz = await JSZip.loadAsync(await resp.blob());
-                    const tf_ = rz.file('model.tflite');
+                    let tf_ = rz.file('model.tflite') || rz.file('tiny_image_esp32_model/model.tflite');
+                    if (!tf_) {
+                        const files = Object.keys(rz.files);
+                        const match = files.find(f => f.endsWith('model.tflite'));
+                        if (match) tf_ = rz.file(match);
+                    }
                     if (!tf_) throw new Error('model.tflite not found in backend response');
                     tfliteBytes = await tf_.async('uint8array');
                 } else {
                     tfliteBytes = new Uint8Array(await resp.arrayBuffer());
                 }
 
-                setStatus(`TFLite ready (${(tfliteBytes.length/1024).toFixed(1)} KB). Generating 9 Arduino files...`);
+                if (!isSerialUpload) {
+                    setStatus(`TFLite ready (${(tfliteBytes.length/1024).toFixed(1)} KB). Generating 9 Arduino files...`);
 
-                // ── File 1: person_detect_model_data.cpp ──────────────
-                let hexRows = '';
-                for (let i = 0; i < tfliteBytes.length; i++) {
-                    if (i % 12 === 0) hexRows += '\n  ';
-                    hexRows += '0x' + tfliteBytes[i].toString(16).padStart(2, '0');
-                    if (i < tfliteBytes.length - 1) hexRows += ', ';
-                }
-                const modelDataCpp =
+                    // ── File 1: person_detect_model_data.cpp ──────────────
+                    let hexRows = '';
+                    for (let i = 0; i < tfliteBytes.length; i++) {
+                        if (i % 12 === 0) hexRows += '\n  ';
+                        hexRows += '0x' + tfliteBytes[i].toString(16).padStart(2, '0');
+                        if (i < tfliteBytes.length - 1) hexRows += ', ';
+                    }
+                    const modelDataCpp =
 `/* Auto-generated ${dateStr} — ESP32-S3 Trainer
  * Classes (${nc}): ${labels.join(', ')}
  * Input: ${inputSize}x${inputSize} grayscale  |  Format: INT8 TFLite
@@ -3166,8 +3222,8 @@ alignas(8) const unsigned char g_person_detect_model_data[] = {${hexRows}
 const int g_person_detect_model_data_len = ${tfliteBytes.length};
 `;
 
-                // ── File 2: person_detect_model_data.h ────────────────
-                const modelDataH =
+                    // ── File 2: person_detect_model_data.h ────────────────
+                    const modelDataH =
 `/* Auto-generated ${dateStr} */
 #ifndef PERSON_DETECT_MODEL_DATA_H_
 #define PERSON_DETECT_MODEL_DATA_H_
@@ -3178,11 +3234,11 @@ extern const int g_person_detect_model_data_len;
 #endif  // PERSON_DETECT_MODEL_DATA_H_
 `;
 
-                // ── File 3: model_settings.h ──────────────────────────
-                const labelConsts = labels
-                    .map((l, i) => `constexpr int k${l.replace(/\W+/g, '')}Index = ${i};`)
-                    .join('\n');
-                const modelSettingsH =
+                    // ── File 3: model_settings.h ──────────────────────────
+                    const labelConsts = labels
+                        .map((l, i) => `constexpr int k${l.replace(/\W+/g, '')}Index = ${i};`)
+                        .join('\n');
+                    const modelSettingsH =
 `/* Auto-generated ${dateStr} */
 #ifndef MODEL_SETTINGS_H_
 #define MODEL_SETTINGS_H_
@@ -3200,9 +3256,9 @@ extern const char* kCategoryLabels[kCategoryCount];
 #endif  // MODEL_SETTINGS_H_
 `;
 
-                // ── File 4: model_settings.cpp ────────────────────────
-                const labelArray = labels.map(l => `  "${l}",`).join('\n');
-                const modelSettingsCpp =
+                    // ── File 4: model_settings.cpp ────────────────────────
+                    const labelArray = labels.map(l => `  "${l}",`).join('\n');
+                    const modelSettingsCpp =
 `/* Auto-generated ${dateStr} */
 #include "model_settings.h"
 
@@ -3211,8 +3267,8 @@ ${labelArray}
 };
 `;
 
-                // ── File 5: arduino_image_provider.cpp ────────────────
-                const imageProviderCpp =
+                    // ── File 5: arduino_image_provider.cpp ────────────────
+                    const imageProviderCpp =
 `/* ESP32-S3 Camera Image Provider — Auto-generated ${dateStr}
  * Captures ${inputSize}x${inputSize} grayscale frames for TFLite inference.
  * Pin config: Hiwonder ESP32-S3 (OV2640)
@@ -3296,8 +3352,8 @@ TfLiteStatus GetImage(tflite::ErrorReporter* reporter, int image_width,
 }
 `;
 
-                // ── File 6: image_provider.h ──────────────────────────
-                const imageProviderH =
+                    // ── File 6: image_provider.h ──────────────────────────
+                    const imageProviderH =
 `/* Auto-generated ${dateStr} */
 #ifndef IMAGE_PROVIDER_H_
 #define IMAGE_PROVIDER_H_
@@ -3312,8 +3368,8 @@ TfLiteStatus GetImage(tflite::ErrorReporter* error_reporter,
 #endif  // IMAGE_PROVIDER_H_
 `;
 
-                // ── File 7: main_functions.h ──────────────────────────
-                const mainFunctionsH =
+                    // ── File 7: main_functions.h ──────────────────────────
+                    const mainFunctionsH =
 `/* Auto-generated ${dateStr} */
 #ifndef MAIN_FUNCTIONS_H_
 #define MAIN_FUNCTIONS_H_
@@ -3324,8 +3380,8 @@ void loop();
 #endif  // MAIN_FUNCTIONS_H_
 `;
 
-                // ── File 8: arduino_main.cpp ──────────────────────────
-                const arduinoMainCpp =
+                    // ── File 8: arduino_main.cpp ──────────────────────────
+                    const arduinoMainCpp =
 `/* Auto-generated ${dateStr}
  * TFLite Micro inference loop for ESP32-S3
  * Classes: ${labels.join(', ')}
@@ -3407,8 +3463,8 @@ void loop() {
 }
 `;
 
-                // ── File 9: sketch .ino ───────────────────────────────
-                const sketchIno =
+                    // ── File 9: sketch .ino ───────────────────────────────
+                    const sketchIno =
 `/* ${skName}.ino — Auto-generated ${dateStr}
  * ESP32-S3 TFLite image classifier
  * Classes: ${labels.join(', ')}
@@ -3426,27 +3482,67 @@ void loop() {
 // setup() and loop() are defined in arduino_main.cpp
 `;
 
-                // ── Step 4: bundle into ZIP ───────────────────────────
-                setStatus('Packaging ZIP...');
-                const zip = new JSZip();
-                const folder = zip.folder(skName);
-                folder.file('person_detect_model_data.cpp', modelDataCpp);
-                folder.file('person_detect_model_data.h',   modelDataH);
-                folder.file('model_settings.h',             modelSettingsH);
-                folder.file('model_settings.cpp',           modelSettingsCpp);
-                folder.file('arduino_image_provider.cpp',   imageProviderCpp);
-                folder.file('image_provider.h',             imageProviderH);
-                folder.file('main_functions.h',             mainFunctionsH);
-                folder.file('arduino_main.cpp',             arduinoMainCpp);
-                folder.file(`${skName}.ino`,                sketchIno);
+                    // ── Step 4: bundle into ZIP ───────────────────────────
+                    setStatus('Packaging ZIP...');
+                    const zip = new JSZip();
+                    const folder = zip.folder(skName);
+                    folder.file('person_detect_model_data.cpp', modelDataCpp);
+                    folder.file('person_detect_model_data.h',   modelDataH);
+                    folder.file('model_settings.h',             modelSettingsH);
+                    folder.file('model_settings.cpp',           modelSettingsCpp);
+                    folder.file('arduino_image_provider.cpp',   imageProviderCpp);
+                    folder.file('image_provider.h',             imageProviderH);
+                    folder.file('main_functions.h',             mainFunctionsH);
+                    folder.file('arduino_main.cpp',             arduinoMainCpp);
+                    folder.file(`${skName}.ino`,                sketchIno);
 
-                const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-                downloadBlob(zipBlob, `${skName}.zip`);
+                    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+                    downloadBlob(zipBlob, `${skName}.zip`);
+                }
 
                 // ── Auto-upload via WebSerial if port was pre-connected ──────
                 _dfr1154.labelsText = labels.map((l, i) => i + ' ' + l).join('\n') + '\n';
-                const sizeKb = (zipBlob.size / 1024).toFixed(1);
-                setStatus(`ZIP downloaded (${sizeKb} KB).${_serialReady ? ' Auto-uploading to DFR1154…' : ''}`);
+                const sizeKb = (tfliteBytes.length / 1024).toFixed(1);
+
+                if (isSerialUpload) {
+                    const modal = document.getElementById('rstModal');
+                    const modalBtn = document.getElementById('rstModalBtn');
+                    const cancelBtn = document.getElementById('rstCancelBtn');
+                    modal.style.display = 'flex';
+
+                    await new Promise((resolve, reject) => {
+                        modalBtn.onclick = async () => {
+                            try {
+                                btn.innerHTML = '<span class="spinner"></span>Connecting to port…';
+                                try { _dfr1154.reader?.cancel(); }      catch (_) {}
+                                try { _dfr1154.writer?.releaseLock(); } catch (_) {}
+                                try { _dfr1154.reader?.releaseLock(); } catch (_) {}
+                                try { await _dfr1154.port?.close(); }   catch (_) {}
+                                _dfr1154.rxBuf  = '';
+                                _dfr1154.port   = await navigator.serial.requestPort();
+                                await _dfr1154.port.open({ baudRate: 115200, bufferSize: 8192 });
+                                try { await _dfr1154.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (_) {}
+                                _dfr1154.reader = _dfr1154.port.readable.getReader();
+                                _dfr1154.writer = _dfr1154.port.writable.getWriter();
+                                _serialReady    = true;
+                                document.getElementById('serialPanel').classList.add('active');
+                                dfr1154SetStatus('Serial connected — uploading…', true);
+                                dfr1154Log('Port opened. Uploading model...');
+                                modal.style.display = 'none';
+                                resolve();
+                            } catch (e) {
+                                modal.style.display = 'none';
+                                reject(e);
+                            }
+                        };
+                        cancelBtn.onclick = () => {
+                            modal.style.display = 'none';
+                            reject(new Error('Upload cancelled by user.'));
+                        };
+                    });
+                } else {
+                    setStatus(`ZIP downloaded (${sizeKb} KB).`);
+                }
 
                 if (_serialReady) {
                     btn.innerHTML = '<span class="spinner"></span>Waiting for DFR1154 firmware…';
@@ -3479,29 +3575,53 @@ void loop() {
                     const kb = (tfliteBytes.length / 1024).toFixed(1);
                     dfr1154Log(`✅ Model loaded (${kb} KB)! Inference running on DFR1154.`);
                     dfr1154SetStatus(`✅ Loaded ${kb} KB — inference running on board.`, true);
-                    setStatus(`DFR1154 model loaded (${kb} KB). ZIP also downloaded.`);
+                    setStatus(`DFR1154 model loaded (${kb} KB).`);
                 } else {
-                    alert(
-                        `✅ Arduino ZIP downloaded!\n\n` +
-                        `Contents (${skName}/):\n` +
-                        `  1. person_detect_model_data.cpp  2. person_detect_model_data.h\n` +
-                        `  3. model_settings.h              4. model_settings.cpp\n` +
-                        `  5. arduino_image_provider.cpp    6. image_provider.h\n` +
-                        `  7. main_functions.h              8. arduino_main.cpp\n` +
-                        `  9. ${skName}.ino\n\n` +
-                        `Open in Arduino IDE.\n` +
-                        `Set Partition → Huge APP (3MB) + PSRAM → OPI PSRAM, then upload.\n\n` +
-                        `💡 Tip: Use Chrome/Edge and click Export again to auto-deploy via serial.`
-                    );
+                    if (isSerialUpload) {
+                        alert(
+                            `🔌 WebSerial connection was not established or was cancelled.\n\n` +
+                            `No files were sent to the board and no ZIP was downloaded.\n\n` +
+                            `If you want to manually download the Arduino C++ files, click the "Export Arduino ZIP (9 files)" button instead.`
+                        );
+                    } else {
+                        alert(
+                            `✅ Arduino ZIP downloaded!\n\n` +
+                            `Contents (${skName}/):\n` +
+                            `  1. person_detect_model_data.cpp  2. person_detect_model_data.h\n` +
+                            `  3. model_settings.h              4. model_settings.cpp\n` +
+                            `  5. arduino_image_provider.cpp    6. image_provider.h\n` +
+                            `  7. main_functions.h              8. arduino_main.cpp\n` +
+                            `  9. ${skName}.ino\n\n` +
+                            `Open in Arduino IDE.\n` +
+                            `Set Partition → Huge APP (3MB) + PSRAM → OPI PSRAM, then upload.\n\n` +
+                            `💡 Tip: Use Chrome/Edge and click Deploy to ESP32 (WebSerial) for direct flashing.`
+                        );
+                    }
                 }
 
             } catch (e) {
-                console.error('Arduino ZIP export error:', e);
-                alert('Arduino ZIP Export Failed: ' + e.message);
-                setStatus('Arduino ZIP export failed: ' + e.message);
+                console.error('ESP32 deployment error:', e);
+                if (isSerialUpload) {
+                    if (e.message.includes('Inference already started') || e.message.includes('reset board')) {
+                        alert(
+                            `⚠️ ESP32 Upload Locked!\n\n` +
+                            `The board has already started running its previous model, which locks the upload channel.\n\n` +
+                            `👉 How to solve this:\n` +
+                            `1. Press the physical "RST" (Reset) button on your DFR1154 board.\n` +
+                            `2. Immediately click the yellow "Deploy to ESP32 (WebSerial)" button in your browser within 5 seconds!\n\n` +
+                            `This will catch the board during its initial startup handshake before it starts running the old model.`
+                        );
+                    } else {
+                        alert('🔌 ESP32 Serial Upload Failed:\n\n' + e.message + '\n\nTip: Close other applications (like Arduino IDE Serial Monitor) that might be using the COM port, reset the board, and try again.');
+                    }
+                    setStatus('ESP32 WebSerial upload failed: ' + e.message);
+                } else {
+                    alert('Arduino ZIP Export Failed: ' + e.message);
+                    setStatus('Arduino ZIP export failed: ' + e.message);
+                }
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '📦 Export Arduino ZIP (9 files)';
+                btn.innerHTML = isSerialUpload ? '🔌 Deploy to ESP32 (WebSerial)' : '📦 Export Arduino ZIP (9 files)';
             }
         }
 
@@ -3618,6 +3738,14 @@ void loop() {
         loadState();
         render();
     </script>
+<script>
+  // Fix 100vh on Android Expo WebView — set body height to actual visible height
+  if (window.ReactNativeWebView) {
+    function _fixBodyH() { document.body.style.height = window.innerHeight + 'px'; }
+    _fixBodyH();
+    window.addEventListener('resize', _fixBodyH);
+  }
+</script>
 </body>
 
 </html>

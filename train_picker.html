@@ -272,5 +272,13 @@ function goBack() {
     send('CLOSE_PICKER');
 }
 </script>
+<script>
+  // Fix 100vh on Android Expo WebView — set body height to actual visible height
+  if (window.ReactNativeWebView) {
+    function _fixBodyH() { document.body.style.height = window.innerHeight + 'px'; }
+    _fixBodyH();
+    window.addEventListener('resize', _fixBodyH);
+  }
+</script>
 </body>
 </html>

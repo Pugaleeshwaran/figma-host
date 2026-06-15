@@ -133,7 +133,7 @@
         }
 
         .col {
-            width: 340px;
+            width: 420px;
             flex-shrink: 0;
         }
 
@@ -1107,133 +1107,6 @@
                 opacity: .2
             }
         }
-
-        /* ── Responsive — tablet + phone ── */
-        @media (max-width: 1100px) {
-
-            /* Stack columns vertically */
-            .columns {
-                flex-direction: column !important;
-                overflow-x: hidden !important;
-                padding: 12px !important;
-                gap: 14px !important;
-            }
-
-            .col {
-                width: 100% !important;
-                max-width: 100% !important;
-                flex-shrink: 1 !important;
-            }
-
-            .arrow {
-                display: none !important;
-            }
-
-            /* Header */
-            .header {
-                padding: 10px 14px;
-                flex-wrap: wrap;
-                gap: 6px;
-            }
-
-            .header h1 {
-                font-size: 15px;
-            }
-
-            .header-badge {
-                font-size: 10px;
-                padding: 2px 7px;
-            }
-
-            .deploy-btn,
-            .reset-btn,
-            .back-btn {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
-
-            /* Camera */
-            .cam-canvas-box {
-                height: 220px;
-            }
-
-            .preview-vis-wrap {
-                height: 220px !important;
-            }
-
-            /* Outputs */
-            .output-label {
-                width: 72px;
-                font-size: 12px;
-            }
-
-            /* Fix fixed-width inputs inside action-wrap */
-            #backendUrlInput {
-                width: 100% !important;
-                max-width: 100% !important;
-                box-sizing: border-box;
-            }
-
-            .k230-settings {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 8px !important;
-            }
-
-            .k230-row {
-                flex-wrap: wrap !important;
-                gap: 6px !important;
-            }
-
-            .k230-input,
-            .k230-select {
-                font-size: 13px !important;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .header {
-                padding: 8px 10px;
-            }
-
-            .header h1 {
-                font-size: 13px;
-            }
-
-            .deploy-btn,
-            .reset-btn,
-            .back-btn {
-                padding: 5px 9px;
-                font-size: 11px;
-            }
-
-            .columns {
-                padding: 8px !important;
-                gap: 10px !important;
-            }
-
-            .cam-canvas-box {
-                height: 180px;
-            }
-
-            .preview-vis-wrap {
-                height: 180px !important;
-            }
-
-            .train-btn {
-                padding: 12px;
-                font-size: 14px;
-            }
-
-            .action-btn {
-                padding: 12px;
-                font-size: 13px;
-            }
-
-            .samples-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
     </style>
 </head>
 
@@ -1382,13 +1255,6 @@
                     <button class="action-btn btn-export" id="exportBtn" onclick="exportKmodel()" disabled>Export
                         .kmodel (Local)</button>
 
-                    <!-- Backend URL (used by compile + deploy) -->
-                    <div style="display:flex;align-items:center;gap:5px;margin-top:10px;">
-                        <span style="font-size:12px;color:#64748b;white-space:nowrap;">Backend URL:</span>
-                        <input type="text" class="k230-input" id="backendUrlInput" style="width:250px;"
-                            title="Backend URL — auto-detected from page origin">
-                    </div>
-
                     <div class="k230-settings">
                         <div class="k230-row">
                             <span>Method:</span>
@@ -1460,25 +1326,11 @@
         // ──────────────────────────────────────────────────────────────
         const CONVERT_SERVER = (() => {
             const origin = window.location.origin;
-            const isCloudflare = origin && origin.includes('trycloudflare.com');
-            const isWindowsAgent = origin && origin.includes('localhost:5002');
-            if (isCloudflare || isWindowsAgent) {
+            if (origin && !origin.includes('file://')) {
                 return origin;
             }
-            return 'http://localhost:5002';
+            return 'http://localhost:5001';
         })();
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const inputEl = document.getElementById('backendUrlInput');
-            if (inputEl) inputEl.value = CONVERT_SERVER;
-        });
-
-        function getBackendUrl() {
-            const input = document.getElementById('backendUrlInput');
-            let url = input?.value?.trim() || CONVERT_SERVER;
-            if (url.endsWith('/')) url = url.slice(0, -1);
-            return url;
-        }
         const CHUNK_BYTES = 192;
         const SERIAL_SUPPORTED = 'serial' in navigator;
         const NUM_KEYPOINTS = 17;   // MoveNet standard
@@ -1756,44 +1608,17 @@
             }
         }
 
-        function checkSecureContext() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                let msg = "Camera access requires a Secure Context (HTTPS or localhost).\n\n";
-                msg += "If you are running Expo on a physical device over Wi-Fi:\n";
-                msg += "1. Run your Expo CLI using the '--tunnel' flag (e.g. `npx expo start --tunnel`). This will generate a secure `https://` address.\n";
-                msg += "2. If accessing via a web browser on a tablet/phone (http://192.168.x.x), open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Google Chrome, add your URL to the text area, enable the flag, and restart Chrome.";
-                alert(msg);
-                return false;
-            }
-            return true;
-        }
-
-        async function getCameraStream(facingMode = 'user', width = 320, height = 240) {
-            try {
-                return await navigator.mediaDevices.getUserMedia({
-                    video: { width: width, height: height, facingMode: facingMode },
-                    audio: false
-                });
-            } catch (e) {
-                console.warn("Strict camera constraints failed, trying standard video:", e);
-                try {
-                    return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                } catch (err) {
-                    throw err;
-                }
-            }
-        }
-
         // ──────────────────────────────────────────────────────────────
         // CAMERA CAPTURE PER CLASS
         // ──────────────────────────────────────────────────────────────
         async function openCamCapture(classIdx) {
-            if (!checkSecureContext()) return;
             if (!moveNet) { setStatus('MoveNet not loaded yet.'); return; }
             if (camOpenIdx !== null) stopCamCapture();
 
             try {
-                camStream = await getCameraStream('user', 320, 240);
+                camStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 240, facingMode: 'user' }, audio: false
+                });
                 camVideoEl = document.createElement('video');
                 camVideoEl.srcObject = camStream;
                 camVideoEl.width = 320; camVideoEl.height = 240;
@@ -1852,21 +1677,12 @@
             setStatus('Camera stopped.');
         }
 
-        function captureMultiplePoses(classIdx) {
-            const btn = document.getElementById(`poseCapBtn-${classIdx}`);
-            if (btn) { btn.disabled = true; btn.textContent = 'Capturing...'; }
-            let count = 0;
-            const total = 5;
-            function doCapture() {
-                if (count >= total) {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Capture 5 Poses'; }
-                    return;
-                }
-                captureOneSample(classIdx);
-                count++;
-                holdTimer = setTimeout(doCapture, 500);
-            }
-            doCapture();
+        function startHoldRecord(classIdx) {
+            captureOneSample(classIdx);
+            holdTimer = setInterval(() => captureOneSample(classIdx), 400);
+        }
+        function stopHoldRecord() {
+            clearInterval(holdTimer); holdTimer = null;
         }
 
         async function captureOneSample(classIdx) {
@@ -1968,7 +1784,7 @@
             classes.forEach((cls, idx) => {
                 const card = document.createElement('div');
                 card.className = 'class-card';
-                const count = (thumbnailStore[idx] || []).length;
+                const count = classCounts[cls.name] || 0;
                 const isCamOpen = camOpenIdx === idx;
 
                 card.innerHTML = `
@@ -1993,9 +1809,11 @@
                         📐 Dashed box = capture area &nbsp;·&nbsp; <b>320×240px</b> crop
                     </div>
                     <div class="cam-btn-row">
-                        <button class="hold-btn" id="poseCapBtn-${idx}" style="background:${cls.color}"
-                            onclick="captureMultiplePoses(${idx})">
-                            Capture 5 Poses
+                        <button class="hold-btn" style="background:${cls.color}"
+                            onmousedown="startHoldRecord(${idx})" onmouseup="stopHoldRecord()"
+                            onmouseleave="stopHoldRecord()"
+                            ontouchstart="startHoldRecord(${idx})" ontouchend="stopHoldRecord()">
+                            Hold to Capture
                         </button>
                         <button class="stop-cam-btn" onclick="stopCamCapture()">Stop</button>
                     </div>
@@ -2067,11 +1885,11 @@
         }
 
         function renderStats() {
-            document.getElementById('statsList').innerHTML = classes.map((cls, idx) => `
+            document.getElementById('statsList').innerHTML = classes.map(cls => `
         <div class="stat-row">
             <div class="stat-dot" style="background:${cls.color}"></div>
             <span class="stat-name">${cls.name}</span>
-            <span class="stat-count">${(thumbnailStore[idx] || []).length} samples</span>
+            <span class="stat-count">${classCounts[cls.name] || 0} samples</span>
         </div>`).join('');
         }
 
@@ -2203,7 +2021,7 @@
 
         async function trainModel() {
             if (!moveNet) { alert('MoveNet not loaded yet.'); return; }
-            const minSamples = Math.min(...classes.map((c, idx) => (thumbnailStore[idx] || []).length));
+            const minSamples = Math.min(...classes.map(c => classCounts[c.name] || 0));
             if (minSamples < 5) {
                 alert(`Need at least 5 samples per class. Some classes have fewer.`); return;
             }
@@ -2338,10 +2156,11 @@
         async function startLivePreview() {
             if (livePreviewActive) return;
             if (!trained || !classifier) { alert('Train the model first!'); return; }
-            if (!checkSecureContext()) return;
 
             try {
-                previewStream = await getCameraStream('user', 320, 240);
+                previewStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 240, facingMode: 'user' }, audio: false
+                });
                 previewVideo = document.createElement('video');
                 previewVideo.srcObject = previewStream;
                 previewVideo.width = 320;
@@ -2554,7 +2373,7 @@
                 formData.append('labels', JSON.stringify(classes.map(c => c.name)));
 
                 setStatus('Compiling on backend...');
-                const resp = await fetch(`${getBackendUrl()}/convert`, { method: 'POST', body: formData });
+                const resp = await fetch(`${CONVERT_SERVER}/convert-pose`, { method: 'POST', body: formData });
                 if (!resp.ok) throw new Error(`Server error ${resp.status}: ${await resp.text()}`);
 
                 setStatus('Unpacking compiled model...');
@@ -2659,7 +2478,7 @@
                 formData.append('labels', JSON.stringify(classes.map(c => c.name)));
 
                 setStatus('Sending to backend...');
-                const resp = await fetch(`${getBackendUrl()}/convert`, { method: 'POST', body: formData });
+                const resp = await fetch(`${CONVERT_SERVER}/convert-pose`, { method: 'POST', body: formData });
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ error: 'Server error' }));
                     throw new Error(err.error || `Error ${resp.status}`);
@@ -2708,6 +2527,14 @@
         classes.forEach(c => { classCounts[c.name] = 0; });
         render();
         loadBaseModel();
+    </script>
+    <script>
+        // Fix 100vh on Android Expo WebView — set body height to actual visible height
+        if (window.ReactNativeWebView) {
+            function _fixBodyH() { document.body.style.height = window.innerHeight + 'px'; }
+            _fixBodyH();
+            window.addEventListener('resize', _fixBodyH);
+        }
     </script>
 </body>
 

@@ -302,6 +302,47 @@
         .rec-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
             background: #ef4444; animation: recB .6s ease infinite alternate; }
         @keyframes recB { from{opacity:1} to{opacity:.2} }
+
+        .btn-deploy-esp32 { background: #eab308; }
+        .serial-panel {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: #1e1b4b;
+            border-radius: 8px;
+            border: 1px solid #4c1d95;
+        }
+        .serial-panel.active { display: block; }
+        .serial-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #c4b5fd;
+        }
+        .serial-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .serial-dot.connected { background: #4ade80; }
+        .serial-log {
+            display: none;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #86efac;
+            background: #071016;
+            border-radius: 4px;
+            padding: 8px;
+            max-height: 130px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .serial-log.active { display: block; }
 </style>
 </head>
 <body>
@@ -495,6 +536,15 @@
                     onclick="exportKmodel()" disabled>Export .kmodel (Local)</button>
                 <button class="action-btn btn-export-esp32" id="exportEsp32Btn"
                     onclick="exportVoiceTflite()" disabled>Export .tflite (ESP32-S3)</button>
+                <button class="action-btn btn-deploy-esp32" id="deployEsp32Btn"
+                    onclick="deployVoiceToEsp32()" disabled>🔌 Deploy to ESP32 (WebSerial)</button>
+                <div class="serial-panel" id="serialPanel">
+                    <div class="serial-bar">
+                        <div class="serial-dot" id="serialDot"></div>
+                        <span id="serialStatusMsg">Click Deploy to ESP32 (WebSerial) to upload directly.</span>
+                    </div>
+                    <div class="serial-log" id="serialLog"></div>
+                </div>
 
                 <div class="k230-settings">
                     <div class="k230-row">
@@ -564,15 +614,7 @@
 <script>
 'use strict';
 
-const CONVERT_SERVER = (() => {
-    const origin = window.location.origin;
-    const isCloudflare = origin && origin.includes('trycloudflare.com');
-    const isWindowsAgent = origin && origin.includes('localhost:5002');
-    if (isCloudflare || isWindowsAgent) {
-        return origin;
-    }
-    return 'http://localhost:5002';
-})();
+const CONVERT_SERVER = "http://localhost:5001";
 
 window.addEventListener('DOMContentLoaded', () => {
     const inputEl = document.getElementById('backendUrlInput');
@@ -687,7 +729,7 @@ function setStatus(msg){document.getElementById('statusBar').textContent=msg;}
 function updateThresh(v){THRESH=parseInt(v)/100;const el=document.getElementById('thresholdValue');if(el)el.textContent=v+'%';}
 function updateInferInterval(v){INFER_MS=parseInt(v);const e1=document.getElementById('threshDisplay2');if(e1)e1.textContent=v+'ms';const e2=document.getElementById('inferDisplay');if(e2)e2.textContent=v+'ms';if(micActive)restartInferTimer();}
 function isNoise(name){const n=name.toLowerCase();return n.includes('noise')||n.includes('background')||n.includes('silence');}
-function updateButtons(){const ok=trained;['deployHeaderBtn','deployCardBtn','deployK230Btn','exportBtn','exportEsp32Btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ok;});const mb=document.getElementById('micBtn');if(mb)mb.disabled=!ok;}
+function updateButtons(){const ok=trained;['deployHeaderBtn','deployCardBtn','deployK230Btn','exportBtn','exportEsp32Btn','deployEsp32Btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ok;});const mb=document.getElementById('micBtn');if(mb)mb.disabled=!ok;}
 
 // ── Clip length ───────────────────────────────────────────────────────────
 function setClipLen(ms){
@@ -787,6 +829,25 @@ function computeSpectrogram(pcm16k){
     }
     return tf.tensor4d(specData,[1,MODEL_FRAMES,MODEL_BINS,1]);
 }
+function computeNormalizedSpectrogram(pcm16k){
+    const spec = computeSpectrogram(pcm16k);
+    const data = spec.dataSync();
+    spec.dispose();
+    const len = data.length;
+    let sum = 0, sumsq = 0;
+    for (let i = 0; i < len; i++) {
+        sum += data[i];
+        sumsq += data[i] * data[i];
+    }
+    const mean = sum / len;
+    const variance = Math.max(0, (sumsq / len) - mean * mean);
+    const stdDev = Math.sqrt(variance) + 1e-4;
+    const normalized = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+        normalized[i] = (data[i] - mean) / stdDev;
+    }
+    return tf.tensor4d(normalized, [1, MODEL_FRAMES, MODEL_BINS, 1]);
+}
 function prepareWindowInput(pcm16k){return computeSpectrogram(pcm16k);}
 
 // ── Embed one window ─────────────────────────────────────────────────────
@@ -847,46 +908,13 @@ function pcmToWav(pcm,sr=16000){
     return new Blob([buf],{type:'audio/wav'});
 }
 
-function checkSecureContext() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        let msg = "Microphone access requires a Secure Context (HTTPS or localhost).\n\n";
-        msg += "If you are running Expo on a physical device over Wi-Fi:\n";
-        msg += "1. Run your Expo CLI using the '--tunnel' flag (e.g. `npx expo start --tunnel`). This will generate a secure `https://` address.\n";
-        msg += "2. If accessing via a web browser on a tablet/phone (http://192.168.x.x), open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Google Chrome, add your URL to the text area, enable the flag, and restart Chrome.";
-        alert(msg);
-        return false;
-    }
-    return true;
-}
-
-async function getAudioStream() {
-    try {
-        return await navigator.mediaDevices.getUserMedia({
-            audio: {
-                sampleRate: SR,
-                channelCount: 1,
-                echoCancellation: false,
-                noiseSuppression: false
-            }
-        });
-    } catch (e) {
-        console.warn("Strict audio constraints failed, trying standard audio constraints fallback:", e);
-        try {
-            return await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (err) {
-            throw err;
-        }
-    }
-}
-
 // ── Mic capture ──────────────────────────────────────────────────────────
 async function openMic(classIdx){
-    if(!checkSecureContext()) return;
     if(!backbone||!embedExtractor){setStatus('Backbone not loaded yet.');return;}
     if(activeMicIdx!==null)stopMic();
     try{
-        micStream=await getAudioStream();
-        micAudioCtx=new AudioContext();
+        micStream=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:SR,channelCount:1,echoCancellation:false,noiseSuppression:false}});
+        micAudioCtx=new AudioContext({sampleRate:SR});  // Explicitly 16kHz to match ESP32-S3
         micAnalyser=micAudioCtx.createAnalyser();micAnalyser.fftSize=1024;
         micAudioCtx.createMediaStreamSource(micStream).connect(micAnalyser);
         activeMicIdx=classIdx;render();animateMicVis(classIdx);
@@ -1067,7 +1095,7 @@ function renderStats(){
 function addClass(){const id=nextClassId++;classes.push({id,name:'Word'+id,color:COLORS[(id-1)%COLORS.length]});render();}
 function addNoiseClass(){if(classes.find(c=>isNoise(c.name))){alert('Noise class already exists!');return;}classes.push({id:nextClassId++,name:'Background Noise',color:'#fbbf24'});render();setStatus('Noise class added — record silence or ambient room sound.');}
 function removeClass(idx){if(classes.length<=2){alert('Need at least 2 classes');return;}if(activeMicIdx===idx)stopMic();const cls=classes[idx];delete embeddings[cls.name];delete classAudio[cls.name];classes.splice(idx,1);trained=false;updateButtons();render();}
-function renameClass(idx,name){const cls=classes[idx];const old=cls.name;if(old===name)return;if(embeddings[old]){embeddings[name]=embeddings[old];delete embeddings[old];}if(classAudio[old]){classAudio[name]=classAudio[old];delete classAudio[old];}cls.name=name;renderStats();const lEl=document.getElementById('output-label-'+idx);if(lEl){lEl.textContent=name;lEl.style.color=cls.color;}}
+function renameClass(idx,name){const cls=classes[idx];const old=cls.name;if(embeddings[old]){embeddings[name]=embeddings[old];delete embeddings[old];}if(classAudio[old]){classAudio[name]=classAudio[old];delete classAudio[old];}cls.name=name;renderStats();const lEl=document.getElementById('output-label-'+idx);if(lEl){lEl.textContent=name;lEl.style.color=cls.color;}}
 
 // ── Extract x2 ────────────────────────────────────────────────────────────
 function extractClips(classIdx){
@@ -1309,9 +1337,8 @@ function drawWaveVis(){
 async function toggleMic(){
     if(micActive){stopInference();return;}
     if(!trained||!headModel){alert('Train first!');return;}
-    if(!checkSecureContext()) return;
     try{
-        inferStream=await getAudioStream();
+        inferStream=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:SR,channelCount:1,echoCancellation:false,noiseSuppression:false}});
         inferCtx=new AudioContext({sampleRate:SR});inferAnalyser=inferCtx.createAnalyser();inferAnalyser.fftSize=2048;
         const src=inferCtx.createMediaStreamSource(inferStream);src.connect(inferAnalyser);
         inferBuf=new Float32Array(SR*5);inferBufPos=0;
@@ -1493,62 +1520,337 @@ async function exportKmodel(){
     finally{btn.disabled=false;btn.innerHTML='Export .kmodel (Local)';}
 }
 
-async function exportVoiceTflite(){
-    if(!trained||!headModel){alert('Train first!');return;}
-    const btn=document.getElementById('exportEsp32Btn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Building...';setStatus('Exporting: building full model...');
-    try{
-        const fullModel = buildFullVoiceModel();
-        let sa=null;
-        await fullModel.save(tf.io.withSaveHandler(async a=>{sa=a;return{modelArtifactsInfo:{dateSaved:new Date()}};}));
-        // Note: Do not dispose fullModel since its layers are shared with headModel/backbone
+function _buildVoiceMicroCnn(nc) {
+    const m = tf.sequential();
+    m.add(tf.layers.conv2d({ inputShape: [43, 232, 1], filters: 8, kernelSize: [5, 5], strides: [2, 2], padding: 'same', activation: 'relu' }));
+    m.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+    m.add(tf.layers.conv2d({ filters: 12, kernelSize: [3, 3], strides: [2, 2], padding: 'same', activation: 'relu' }));
+    m.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+    m.add(tf.layers.flatten());
+    m.add(tf.layers.dense({ units: 24, activation: 'relu' }));
+    m.add(tf.layers.dense({ units: nc, activation: 'softmax' }));
+    return m;
+}
 
-        const mj={modelTopology:sa.modelTopology,weightsManifest:[{paths:['weights.bin'],weights:sa.weightSpecs}],format:'layers-model',generatedBy:'TensorFlow.js',convertedBy:null};
-        const fd=new FormData();
-        fd.append('model_json',new Blob([JSON.stringify(mj)],{type:'application/json'}),'model.json');
-        fd.append('weights_bin',new Blob([sa.weightData],{type:'application/octet-stream'}),'weights.bin');
-        fd.append('labels',JSON.stringify(classes.map(c=>c.name)));
+async function exportVoiceTflite() {
+    await exportVoiceTfliteCore(false);
+}
 
-        btn.innerHTML='<span class="spinner"></span>Converting...';
-        setStatus('Exporting: sending to backend for ONNX → tflite conversion (this may take 1–2 min)...');
-        console.log('[EXPORT-ESP32] Sending to backend:', getBackendUrl() + '/convert-voice-esp32');
-        
-        const resp = await postToBackend('convert-voice-esp32', fd);
-        const zipBlob = await resp.blob();
-        const ct = resp.headers.get('content-type')||'';
-        
-        console.log('[EXPORT-ESP32] Backend response received. Content-Type:', ct);
-        
-        if(ct.includes('application/json')){
-            const errJson = await JSON.parse(await zipBlob.text()).catch(()=>null);
-            throw new Error(errJson?.error || 'Backend returned error');
-        }
+async function deployVoiceToEsp32() {
+    await exportVoiceTfliteCore(true);
+}
 
-        if(ct.includes('zip')){
-            console.log('[EXPORT-ESP32] Unpacking zip from backend...');
-            const zip = await JSZip.loadAsync(zipBlob);
-            const kf = zip.file('model.tflite');
-            const lf = zip.file('labels.txt');
-            if(!kf || !lf) throw new Error('Backend zip missing model.tflite or labels.txt');
-            
-            btn.innerHTML='<span class="spinner"></span>Downloading...';
-            setStatus('Exporting: downloading voice_v2_model.tflite (converted at backend)...');
-            if(kf) downloadBlob(await kf.async('blob'),'voice_v2_model.tflite');
-            await sleep(400);
-            if(lf) downloadBlob(await lf.async('blob'),'voice_v2_labels.txt');
-        } else {
-            downloadBlob(zipBlob, 'voice_v2_model.tflite');
-            await sleep(400);
-            downloadBlob(new Blob([classes.map(c=>c.name).join('\n')], {type: 'text/plain'}), 'voice_v2_labels.txt');
-        }
+async function exportVoiceTfliteCore(isSerialUpload) {
+    if (classes.length < 2) { alert('Need at least 2 classes!'); return; }
+    const emptyClass = classes.find(c => (classAudio[c.name] || []).length < 3);
+    if (emptyClass) { alert(`"${emptyClass.name}" needs at least 3 clips.`); return; }
 
-        setStatus('✅ Export complete: voice_v2_model.tflite + voice_v2_labels.txt downloaded');
-        alert('✅ Files downloaded (converted by backend).\n\nCopy to your ESP32-S3 firmware directory.');
-    }catch(e){
-        console.error('[EXPORT-ESP32] Error:', e.message);
-        alert('❌ Export failed:\n\n' + e.message + '\n\nMake sure backend is running at:\n' + getBackendUrl());
-        setStatus('Export failed: ' + e.message);
+    const btn = document.getElementById(isSerialUpload ? 'deployEsp32Btn' : 'exportEsp32Btn');
+    btn.disabled = true;
+
+    if (CLIP_MS !== 1000) {
+        alert('Voice model export requires exactly 1.0 second clip length. Please set Clip Length to 1.0s, re-record/upload your clips, train, and then export.');
+        btn.disabled = false;
+        btn.innerHTML = isSerialUpload ? '🔌 Deploy to ESP32 (WebSerial)' : 'Export .tflite (ESP32-S3)';
+        return;
     }
-    finally{btn.disabled=false;btn.innerHTML='Export .tflite (ESP32-S3)';}
+
+    let _serialReady = false;
+    btn.innerHTML = '<span class="spinner"></span>Preparing spectrograms...';
+
+    try {
+        const nc = classes.length;
+        const labels = classes.map(c => c.name);
+
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        const zip = new JSZip();
+        for (const cls of classes) {
+            const classFolder = zip.folder(cls.name);
+            const clips = classAudio[cls.name] || [];
+            for (let i = 0; i < clips.length; i++) {
+                const wavBlob = encodeWAV(clips[i], 16000);
+                classFolder.file(`clip_${i}.wav`, wavBlob);
+            }
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+        const formData = new FormData();
+        formData.append('dataset_zip', zipBlob, 'dataset.zip');
+        formData.append('labels', JSON.stringify(labels));
+        formData.append('epochs', "60");
+
+        btn.innerHTML = '<span class="spinner"></span>Training on Server (~1-2m)...';
+        setStatus('Backend: training server-side model and exporting INT8 TFLite (~1-2 min)...');
+
+        const resp = await postToBackend('convert-tiny', formData);
+
+        // ── Step 5: unpack .tflite from backend response ─────────────────
+        btn.innerHTML = '<span class="spinner"></span>Generating files...';
+        const respBlob = await resp.blob();
+        
+        if (!isSerialUpload) {
+            // User requested to download the ZIP file directly
+            downloadBlob(respBlob, 'tiny_voice_esp32_model.zip');
+            setStatus(`✅ Export complete: tiny_voice_esp32_model.zip downloaded.`);
+            alert(`✅ ZIP file downloaded successfully.`);
+            return;
+        }
+
+        let tfliteBytes = null;
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('zip') || respBlob.type.includes('zip')) {
+            const rz = await JSZip.loadAsync(respBlob);
+            let tf_ = rz.file('model.tflite') || rz.file('tiny_voice_esp32_model/soundclassifier_int8.tflite') || rz.file('tiny_voice_esp32_model/model.tflite');
+            if (!tf_) {
+                const files = Object.keys(rz.files);
+                const match = files.find(f => f.endsWith('model.tflite') || f.endsWith('.tflite'));
+                if (match) tf_ = rz.file(match);
+            }
+            if (!tf_) throw new Error('model.tflite not found in backend response');
+            tfliteBytes = await tf_.async('uint8array');
+        } else {
+            tfliteBytes = new Uint8Array(await respBlob.arrayBuffer());
+        }
+
+        const sizeKb = (tfliteBytes.length / 1024).toFixed(1);
+
+
+        // ── Auto-upload via WebSerial if port was pre-connected ──────
+        _dfr1154.labelsText = labels.map((l, i) => i + ' ' + l).join('\n') + '\n';
+
+        if (isSerialUpload) {
+            const modal = document.getElementById('rstModal');
+            const modalBtn = document.getElementById('rstModalBtn');
+            const cancelBtn = document.getElementById('rstCancelBtn');
+            
+            // Customize modal paragraph for Voice
+            const pText = modal.querySelector('p');
+            if (pText) {
+                pText.innerHTML = `Your ${sizeKb} KB voice model is trained and ready! To prevent the board from starting its old model and locking the connection, please follow these steps:
+                <br><br>
+                1. <strong>Press and release</strong> the physical <strong>RST (Reset)</strong> button on your board now.
+                <br>
+                2. Click <strong>Connect & Upload</strong> below immediately!`;
+            }
+
+            modal.style.display = 'flex';
+
+            await new Promise((resolve, reject) => {
+                modalBtn.onclick = async () => {
+                    try {
+                        btn.innerHTML = '<span class="spinner"></span>Connecting to port…';
+                        try { _dfr1154.reader?.cancel(); }      catch (_) {}
+                        try { _dfr1154.writer?.releaseLock(); } catch (_) {}
+                        try { _dfr1154.reader?.releaseLock(); } catch (_) {}
+                        try { await _dfr1154.port?.close(); }   catch (_) {}
+                        _dfr1154.rxBuf  = '';
+                        _dfr1154.port   = await navigator.serial.requestPort();
+                        await _dfr1154.port.open({ baudRate: 115200, bufferSize: 8192 });
+                        try { await _dfr1154.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (_) {}
+                        _dfr1154.reader = _dfr1154.port.readable.getReader();
+                        _dfr1154.writer = _dfr1154.port.writable.getWriter();
+                        _serialReady    = true;
+                        document.getElementById('serialPanel').classList.add('active');
+                        dfr1154SetStatus('Serial connected — uploading…', true);
+                        dfr1154Log('Port opened. Uploading model...');
+                        modal.style.display = 'none';
+                        resolve();
+                    } catch (e) {
+                        modal.style.display = 'none';
+                        reject(e);
+                    }
+                };
+                cancelBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    reject(new Error('Upload cancelled by user.'));
+                };
+            });
+        }
+
+        if (_serialReady) {
+            btn.innerHTML = '<span class="spinner"></span>Waiting for DFR1154 firmware…';
+            dfr1154SetStatus('Handshaking with DFR1154 firmware…', true);
+            dfr1154Log('Starting DFR1154 upload protocol…');
+            await dfr1154WaitReady();
+
+            btn.innerHTML = '<span class="spinner"></span>Uploading labels…';
+            const labelBytes = new TextEncoder().encode(_dfr1154.labelsText);
+            dfr1154Log('→ LABELS ' + labelBytes.length);
+            await dfr1154Write('LABELS ' + labelBytes.length + '\n');
+            await _dfr1154.writer.write(labelBytes);
+            await dfr1154Expect(l => l.includes('SERIAL OK LABELS') || l.includes('Serial labels uploaded'), 10000);
+            dfr1154Log('Labels sent ✓');
+
+            await dfr1154SendCommand('MODEL_BEGIN ' + tfliteBytes.length, 'MODEL_BEGIN', 15000);
+            const chunkSize = 2048;
+            for (let offset = 0; offset < tfliteBytes.length; offset += chunkSize) {
+                const chunk = tfliteBytes.slice(offset, Math.min(offset + chunkSize, tfliteBytes.length));
+                const pct   = Math.round(((offset + chunk.length) / tfliteBytes.length) * 100);
+                btn.innerHTML = `<span class="spinner"></span>Uploading to DFR1154… ${pct}%`;
+                dfr1154Log('→ MODEL_CHUNK ' + offset + ' ' + chunk.length);
+                await dfr1154Write('MODEL_CHUNK ' + offset + ' ' + chunk.length + '\n');
+                await _dfr1154.writer.write(chunk);
+                await dfr1154Expect(l => l.includes('SERIAL OK MODEL_CHUNK'), 15000);
+            }
+            await dfr1154SendCommand('MODEL_END ' + tfliteBytes.length, 'MODEL_END', 15000);
+            await dfr1154SendCommand('LOAD', 'LOAD', 10000);
+
+            const kb = (tfliteBytes.length / 1024).toFixed(1);
+            dfr1154Log(`✅ Model loaded (${kb} KB)! Inference running on DFR1154.`);
+            dfr1154SetStatus(`✅ Loaded ${kb} KB — inference running on board.`, true);
+            setStatus(`DFR1154 model loaded (${kb} KB).`);
+        } else {
+            if (isSerialUpload) {
+                alert(
+                    `🔌 WebSerial connection was not established or was cancelled.\n\n` +
+                    `No files were sent to the board and no TFLite files were downloaded.\n\n` +
+                    `If you want to manually download the TFLite model, click the "Export .tflite (ESP32-S3)" button instead.`
+                );
+            }
+        }
+
+    } catch (e) {
+        console.error('ESP32 deployment error:', e);
+        if (isSerialUpload) {
+            if (e.message.includes('Inference already started') || e.message.includes('reset board')) {
+                alert(
+                    `⚠️ ESP32 Upload Locked!\n\n` +
+                    `The board has already started running its previous model, which locks the upload channel.\n\n` +
+                    `👉 How to solve this:\n` +
+                    `1. Press the physical "RST" (Reset) button on your DFR1154 board.\n` +
+                    `2. Immediately click the yellow "Deploy to ESP32 (WebSerial)" button in your browser within 5 seconds!\n\n` +
+                    `This will catch the board during its initial startup handshake before it starts running the old model.`
+                );
+            } else {
+                alert('🔌 ESP32 Serial Upload Failed:\n\n' + e.message + '\n\nTip: Close other applications (like Arduino IDE Serial Monitor) that might be using the COM port, reset the board, and try again.');
+            }
+            setStatus('ESP32 WebSerial upload failed: ' + e.message);
+        } else {
+            alert('TFLite Export Failed: ' + e.message);
+            setStatus('TFLite export failed: ' + e.message);
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = isSerialUpload ? '🔌 Deploy to ESP32 (WebSerial)' : 'Export .tflite (ESP32-S3)';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DFR1154 WebSerial Upload
+// Protocol: PING → LABELS → MODEL_BEGIN → MODEL_CHUNKs → MODEL_END → LOAD
+// ══════════════════════════════════════════════════════════════
+
+const _dfr1154 = {
+    bytes: null,       // Uint8Array — last exported TFLite model
+    labelsText: '',    // "0 Class1\n1 Class2\n"
+    port: null,
+    reader: null,
+    writer: null,
+    rxBuf: '',
+};
+
+function dfr1154SetStatus(msg, connected) {
+    const dot = document.getElementById('serialDot');
+    const st  = document.getElementById('serialStatusMsg');
+    if (dot) dot.className = 'serial-dot' + (connected ? ' connected' : '');
+    if (st)  st.textContent = msg;
+}
+
+function dfr1154Log(s) {
+    const box = document.getElementById('serialLog');
+    if (!box) return;
+    box.classList.add('active');
+    box.textContent = '[' + new Date().toLocaleTimeString() + '] ' + s + '\n' + box.textContent;
+}
+
+async function dfr1154ReadLine(timeoutMs = 10000) {
+    const deadline = Date.now() + timeoutMs;
+    const dec = new TextDecoder();
+    while (true) {
+        const nl = _dfr1154.rxBuf.indexOf('\n');
+        if (nl >= 0) {
+            const line = _dfr1154.rxBuf.slice(0, nl).replace(/\r/g, '');
+            _dfr1154.rxBuf = _dfr1154.rxBuf.slice(nl + 1);
+            if (line) dfr1154Log('← ' + line);
+            return line;
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new Error('Serial timeout');
+        const result = await Promise.race([
+            _dfr1154.reader.read(),
+            new Promise(r => setTimeout(() => r({ timeout: true }), remaining))
+        ]);
+        if (result.timeout)     throw new Error('Serial timeout');
+        if (result.done)        throw new Error('Serial disconnected');
+        _dfr1154.rxBuf += dec.decode(result.value, { stream: true });
+    }
+}
+
+async function dfr1154Expect(matchFn, timeoutMs = 10000) {
+    while (true) {
+        const line = await dfr1154ReadLine(timeoutMs);
+        if (line.startsWith('SERIAL ERR')) throw new Error(line);
+        if (matchFn(line)) return line;
+    }
+}
+
+async function dfr1154Write(text) {
+    await _dfr1154.writer.write(new TextEncoder().encode(text));
+}
+
+async function dfr1154SendCommand(cmd, okToken, timeoutMs = 10000) {
+    dfr1154Log('→ ' + cmd);
+    await dfr1154Write(cmd + '\n');
+    return dfr1154Expect(l => l.includes('SERIAL OK ' + okToken), timeoutMs);
+}
+
+async function dfr1154WaitReady() {
+    const deadline = Date.now() + 12000;
+    while (Date.now() < deadline) {
+        await dfr1154Write('PING\n');
+        try {
+            const line = await dfr1154Expect(
+                l => l.includes('SERIAL OK PONG') || l.includes('SERIAL READY'),
+                1200
+            );
+            if (line.includes('SERIAL READY')) {
+                await dfr1154SendCommand('PING', 'PONG', 3000);
+            }
+            return;
+        } catch (e) {
+            if (!e.message.includes('timeout')) throw e;
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    throw new Error('No firmware response. Flash DFR1154 firmware, reset board, then retry.');
 }
 
 // ── Go Back ───────────────────────────────────────────────────────────────
@@ -1562,11 +1864,60 @@ function goBack(){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
+    if (tf.wasm && tf.wasm.setWasmPaths) {
+        tf.wasm.setWasmPaths('./offline_libs/js/');
+    }
+    (async () => {
+        try {
+            await tf.setBackend('webgl');
+            console.log('WebGL backend initialized');
+        } catch (_) {
+            try {
+                await tf.setBackend('wasm');
+                console.log('WASM backend initialized');
+            } catch (err) {
+                console.warn('WebGL/WASM backends failed to load, falling back to CPU:', err);
+            }
+        }
+    })();
     classes.forEach(c=>{embeddings[c.name]=[];classAudio[c.name]=[];});
     setClipLen(1500);
     render();
     loadBackbone();
 });
+</script>
+
+    <!-- Beautiful modern popup modal for ESP32 RST guidance -->
+    <div id="rstModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px); z-index:99999; justify-content:center; align-items:center; transition: opacity 0.3s ease;">
+        <div style="background:#ffffff; border-radius:20px; max-width:440px; width:90%; padding:30px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); border:1px solid #f1f5f9; text-align:center;">
+            <div style="background:#fef9c3; border-radius:50%; width:60px; height:60px; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                <span style="font-size:28px;">🔌</span>
+            </div>
+            <h3 style="margin-bottom:12px; color:#0f172a; font-size:20px; font-weight:800; font-family:system-ui, -apple-system, sans-serif;">Prepare ESP32 Board</h3>
+            <p style="font-size:14px; color:#475569; margin-bottom:24px; line-height:1.6; font-family:system-ui, -apple-system, sans-serif; text-align:left;">
+                Your voice model is trained and ready! To prevent the board from starting its old model and locking the connection, please follow these steps:
+                <br><br>
+                1. <strong>Press and release</strong> the physical <strong>RST (Reset)</strong> button on your board now.
+                <br>
+                2. Click <strong>Connect & Upload</strong> below immediately!
+            </p>
+            <div style="display:flex; gap:12px;">
+                <button id="rstCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition: background 0.2s;">
+                    Cancel
+                </button>
+                <button id="rstModalBtn" style="flex:2; background:#eab308; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition: background 0.2s; box-shadow:0 4px 6px -1px rgba(234,179,8,0.3);">
+                    Connect & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+<script>
+  // Fix 100vh on Android Expo WebView — set body height to actual visible height
+  if (window.ReactNativeWebView) {
+    function _fixBodyH() { document.body.style.height = window.innerHeight + 'px'; }
+    _fixBodyH();
+    window.addEventListener('resize', _fixBodyH);
+  }
 </script>
 </body>
 </html>
