@@ -77,44 +77,238 @@ function cpAiSend() {
   cpAiQuickSend(text);
 }
 
+function toggleApiKeyPanel(forceOpen) {
+  var panel = document.getElementById('cpAiApiKeyPanel');
+  if (!panel) return;
+  var isHidden = panel.style.display === 'none' || !panel.style.display;
+  if (forceOpen === true) isHidden = true;
+  else if (forceOpen === false) isHidden = false;
+  
+  if (isHidden) {
+    panel.style.display = 'flex';
+    var key = localStorage.getItem('openrouter_api_key') || '';
+    var input = document.getElementById('cpAiApiKeyInput');
+    if (input) {
+      input.value = key;
+      input.focus();
+    }
+    
+    // Load and populate the saved AI model
+    var model = localStorage.getItem('openrouter_model') || 'nex-agi/nex-n2-pro:free';
+    var modelSelect = document.getElementById('cpAiModelSelect');
+    if (modelSelect) {
+      modelSelect.value = model;
+    }
+    
+    var status = document.getElementById('cpAiKeyStatus');
+    if (status) {
+      status.textContent = key ? 'API key is configured.' : 'No API key set.';
+      status.style.color = key ? '#22c55e' : '#64748b';
+    }
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function saveApiKey() {
+  var input = document.getElementById('cpAiApiKeyInput');
+  if (!input) return;
+  var key = input.value.trim();
+  var status = document.getElementById('cpAiKeyStatus');
+  if (key) {
+    localStorage.setItem('openrouter_api_key', key);
+    if (status) {
+      status.textContent = 'API key saved successfully!';
+      status.style.color = '#22c55e';
+    }
+    setTimeout(function() {
+      toggleApiKeyPanel(false);
+    }, 800);
+  } else {
+    localStorage.removeItem('openrouter_api_key');
+    if (status) {
+      status.textContent = 'API key removed.';
+      status.style.color = '#ef4444';
+    }
+  }
+}
+
+function saveAiModel() {
+  var select = document.getElementById('cpAiModelSelect');
+  if (select) {
+    localStorage.setItem('openrouter_model', select.value);
+  }
+}
+
+function cpAiFormatMarkdown(text) {
+  if (!text) return '';
+  
+  // 1. Escape HTML
+  var html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // 2. Code blocks (e.g. ```python ... ```)
+  html = html.replace(/```(?:python|py|javascript|js)?\n([\s\S]*?)\n```/g, function(match, code) {
+    return '<pre class="ai-code-block">' + code.trim() + '</pre>';
+  });
+
+  // 3. Inline code (e.g. `code`)
+  html = html.replace(/`([^`\n]+)`/g, '<code class="ai-inline-code">$1</code>');
+
+  // 4. Bold text
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+  // 5. Italic text
+  html = html.replace(/\*([^*]+)\*\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+  // 6. Bullet lists
+  html = html.replace(/^\s*[-*+]\s+(.+)$/gm, '<li style="margin-left: 14px; margin-top: 4px; list-style-type: disc;">$1</li>');
+  
+  // 7. Newlines
+  html = html.replace(/\n\n/g, '</p><p style="margin-bottom: 8px;">');
+  html = html.replace(/\n/g, '<br>');
+  
+  // Wrap paragraphs
+  html = '<p style="margin: 0; margin-bottom: 8px; line-height: 1.55;">' + html + '</p>';
+  html = html.replace(/<p[^>]*><\/p>/g, '');
+  
+  return html;
+}
+
 function cpAiQuickSend(text) {
   cpAiAppendMessage('user', text);
   var chips = document.getElementById('cpAiChips');
   if (chips) chips.style.display = 'none';
+  
+  var key = localStorage.getItem('openrouter_api_key');
+  if (!key) {
+    setTimeout(function() {
+      var warningHtml = 
+        '<div style="display: flex; flex-direction: column; gap: 8px;">' +
+        '  <span>To use real AI chat, please add your OpenRouter API Key. This will allow Curio to inspect your workspace blocks, generated Python code, and answer questions.</span>' +
+        '  <div style="display: flex; gap: 8px; margin-top: 4px;">' +
+        '    <button onclick="toggleApiKeyPanel(true)" class="ai-chip" style="background: #3D5AE0; color: #fff; border: none; margin: 0; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer;">Set API Key 🔑</button>' +
+        '    <a href="https://openrouter.ai/keys" target="_blank" class="ai-chip" style="background: #F1F4FF; border: 1px solid #DDE1F5; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 6px 12px; border-radius: 6px; font-weight: 600; color: #3D5AE0;">Get Key <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 8px; margin-left: 4px;"></i></a>' +
+        '  </div>' +
+        '</div>';
+      cpAiAppendMessage('bot', warningHtml);
+    }, 600);
+    return;
+  }
+  
+  var model = localStorage.getItem('openrouter_model') || 'nex-agi/nex-n2-pro:free';
   var typing = cpAiShowTyping();
   var code = '';
   try {
     var pyOut = document.getElementById('pyOut');
     if (pyOut) code = pyOut.textContent || '';
   } catch (e) { }
-  setTimeout(function () {
-    if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
-    var reply = cpAiBuildReply(text, code);
-    cpAiAppendMessage('bot', reply);
-  }, 900 + Math.random() * 600);
-}
 
-function cpAiBuildReply(q, code) {
-  q = q.toLowerCase();
-  if (q.indexOf('explain') !== -1 || q.indexOf('what does') !== -1) {
-    if (!code || code.trim().length < 5)
-      return 'No code yet! Try dragging some blocks onto the workspace and I\'ll explain what they do.';
-    var lines = code.split('\n').filter(function (l) { return l.trim(); }).length;
-    return 'Your code has <strong>' + lines + ' active line(s)</strong> of Python. It defines an async start routine that runs on the board. Each block you place generates a specific hardware command — want me to walk through each line?';
-  }
-  if (q.indexOf('error') !== -1 || q.indexOf('fix') !== -1) {
-    return 'Check that all your blocks are properly connected (no floating blocks). Also make sure every sensor block has a valid port selected. Want me to look at the current code?';
-  }
-  if (q.indexOf('if') !== -1 || q.indexOf('false') !== -1 || q.indexOf('condition') !== -1) {
-    return 'The <code>if False:</code> condition never runs, so the body is skipped. Replace <strong>False</strong> with an actual sensor reading like <code>await async_accelerometer()</code> to make it respond to real data.';
-  }
-  if (q.indexOf('terminal') !== -1 || q.indexOf('output') !== -1) {
-    return 'Switch to the <strong>Terminal</strong> tab to see live output from your board. Make sure you\'re connected via USB or BLE first!';
-  }
-  if (q.indexOf('loop') !== -1) {
-    return 'Use the <strong>Loop</strong> category in the toolbox to add infinite or counted loops. Loops let your code run repeatedly on the board.';
-  }
-  return 'Great question! I\'m here to help you understand your Blockly code. Try asking me to <em>explain this code</em>, <em>fix an error</em>, or about any specific block in your workspace.';
+  var terminalLogs = '';
+  try {
+    var rd = document.getElementById('responseDisplay');
+    if (rd) {
+      var rawText = rd.innerText || rd.textContent || '';
+      var lines = rawText.split('\n').filter(function(line) { return line.trim() !== ''; });
+      terminalLogs = lines.slice(-15).join('\n');
+    }
+  } catch (e) { }
+
+  var deviceStatus = 'Not Connected';
+  try {
+    var statusEl = document.getElementById('dp-usb-status');
+    if (statusEl) {
+      deviceStatus = statusEl.textContent || statusEl.innerText || 'Not Connected';
+    }
+  } catch (e) { }
+  
+  // Construct the prompt with system role/context
+  var currentDateTime = new Date().toLocaleString();
+  var systemPrompt = 
+    "You are Curio, a friendly and smart AI coding assistant for a Blockly-based hardware coding application.\n" +
+    "The user builds hardware programs using visual blocks which generate Python code. This Python runs on their board (e.g. STM32 microcontroller).\n\n" +
+    "Current date and time: " + currentDateTime + "\n\n" +
+    "--- REAL-TIME HARDWARE DATA ---\n" +
+    "Target Hardware Board: STM32 microcontroller\n" +
+    "Hardware Connection Status: " + deviceStatus + "\n\n" +
+    "Here is the user's current generated Python code:\n" +
+    "```python\n" +
+    (code.trim() || "# No blocks on workspace yet.") + "\n" +
+    "```\n\n" +
+    "Here are the latest terminal/serial logs from the board:\n" +
+    "```\n" +
+    (terminalLogs.trim() || "(No terminal output logs yet.)") + "\n" +
+    "```\n\n" +
+    "--- CUSTOM PROJECT LIBRARIES (REFERENCE) ---\n" +
+    "If the code references custom project libraries, use these rules:\n" +
+    "- AI2D: Hardware image preprocessor. Key methods: crop(x,y,w,h), resize(method,mode), build(in_shape,out_shape), run(input_np).\n" +
+    "- AIBase: Base class for K230 KPU inference. Handles load_kmodel(), preprocess(), inference().\n" +
+    "- PipeLine: K230 camera pipeline manager. CAM_CHN_ID_0 is for VO display output, CAM_CHN_ID_2 is RGB888 planar for AI input. Get frame using snapshot().\n" +
+    "- YbProtocol: Robot serial protocol. String format: '$LL,II,data#\\n' where LL=length, II=function ID (e.g. 06=FACE_DETECT, 11=HAND_DETECT, 14=OBJECT_DETECT).\n\n" +
+    "Please answer the user's question. Keep answers clear, engaging, and relatively short. Use bullet points and code formatting where necessary.\n" +
+    "If the user is asking about errors, look at the terminal logs. If they ask about board issues, look at the connection status.";
+  
+  fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Curio Blockly Labs'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: 'user',
+          content: systemPrompt + "\n\nUser Question: " + text
+        }
+      ]
+    })
+  })
+  .then(function(response) {
+    if (response.status === 402) {
+      throw new Error('Payment Required (Status 402). Your OpenRouter account may need credits to use the model: ' + model + '. Please add credits or switch to a free model (e.g., Gemma 2 9B (Free)) in the settings.');
+    }
+    if (!response.ok) {
+      throw new Error('API returned status ' + response.status);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+    
+    var replyText = '';
+    try {
+      if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+        replyText = data.choices[0].message.content;
+      } else {
+        replyText = "Sorry, I received an empty response. Please verify your prompt or try again.";
+      }
+    } catch(err) {
+      replyText = "Error parsing AI response: " + err.message;
+    }
+    
+    var replyHtml = cpAiFormatMarkdown(replyText);
+    cpAiAppendMessage('bot', replyHtml);
+  })
+  .catch(function(error) {
+    if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+    
+    var errorHtml = 
+      '<div style="color: #ef4444; font-weight: 500;">' +
+      '  <i class="fa-solid fa-triangle-exclamation"></i> Chat failed: ' + error.message + ' (Model: ' + model + ')' +
+      '</div>' +
+      '<div style="font-size: 10px; margin-top: 4px; opacity: 0.8;">' +
+      '  Please check your internet connection, confirm that your OpenRouter API Key is active, and try again.' +
+      '</div>';
+    cpAiAppendMessage('bot', errorHtml);
+    console.error('OpenRouter API Error:', error);
+  });
 }
 
 function cpAiClearChat() {
@@ -124,3 +318,23 @@ function cpAiClearChat() {
   var chips = document.getElementById('cpAiChips');
   if (chips) chips.style.display = 'flex';
 }
+
+// Automatically seed/update the OpenRouter API key and model on load
+(function() {
+  // Always keep the API key up to date
+  var CURRENT_KEY = 'YOUR_KEY_HERE';
+  localStorage.setItem('openrouter_api_key', CURRENT_KEY);
+  console.log('OpenRouter API key applied.');
+
+  // Valid free models as of June 2026 — reset to default if stored model is outdated/paid
+  var FREE_MODELS = [
+    'nex-agi/nex-n2-pro:free',
+    'google/gemma-2-9b-it:free',
+    'openrouter/free'
+  ];
+  var storedModel = localStorage.getItem('openrouter_model');
+  if (!storedModel || (FREE_MODELS.indexOf(storedModel) === -1 && storedModel !== 'qwen/qwen-2.5-coder-32b-instruct' && storedModel !== 'google/gemini-3.5-flash' && storedModel !== 'google/gemini-3.1-pro')) {
+    localStorage.setItem('openrouter_model', 'nex-agi/nex-n2-pro:free');
+    console.log('OpenRouter model reset to current default.');
+  }
+})();

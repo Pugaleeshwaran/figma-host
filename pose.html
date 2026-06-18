@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <title>Pose Model Training — K230</title>
 
     <!-- TF.js core -->
@@ -126,15 +126,18 @@
             flex-direction: row;
             gap: 16px;
             padding: 16px;
-            overflow-x: auto;
+            overflow-x: hidden;
             overflow-y: auto;
             flex: 1;
             align-items: flex-start;
+            min-width: 0;
         }
 
         .col {
             width: 420px;
-            flex-shrink: 0;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         .col-title {
@@ -1107,6 +1110,164 @@
                 opacity: .2
             }
         }
+
+        /* ══════════════════════════════════════════════
+           RESPONSIVE — tablet & Expo WebView
+           ══════════════════════════════════════════════ */
+
+        /* Tablet portrait (≤ 1024px) — wrap into 2-column grid */
+        @media (max-width: 1024px) {
+            .columns {
+                flex-wrap: wrap;
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .col {
+                width: calc(50% - 6px);
+                flex-shrink: 1;
+            }
+
+            .arrow {
+                display: none;
+            }
+
+            .header h1 {
+                font-size: 15px;
+            }
+
+            .back-btn,
+            .deploy-btn,
+            .reset-btn {
+                padding: 7px 11px;
+                font-size: 12px;
+            }
+        }
+
+        /* Small tablet / large phone (≤ 768px) — single column, body scrolls */
+        @media (max-width: 768px) {
+            body {
+                height: auto;
+                min-height: 100vh;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+            .header {
+                padding: 8px 14px;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .header h1 {
+                font-size: 14px;
+            }
+
+            .columns {
+                flex-direction: column;
+                flex-wrap: nowrap;
+                overflow: visible;
+                flex: unset;
+                gap: 12px;
+                padding: 10px;
+                align-items: stretch;
+            }
+
+            .col {
+                width: 100%;
+                flex-shrink: 0;
+            }
+
+            .arrow {
+                display: none;
+            }
+
+            .cam-canvas-box {
+                height: 210px;
+            }
+
+            .samples-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        /* Mobile / Expo phone (≤ 480px) */
+        @media (max-width: 480px) {
+            .header {
+                padding: 8px 10px;
+            }
+
+            .header h1 {
+                font-size: 13px;
+            }
+
+            .header-badge {
+                display: none;
+            }
+
+            .back-btn,
+            .deploy-btn,
+            .reset-btn {
+                font-size: 11px;
+                padding: 6px 9px;
+            }
+
+            .status-bar {
+                padding: 5px 10px;
+                font-size: 11px;
+                min-height: 24px;
+            }
+
+            .columns {
+                gap: 10px;
+                padding: 8px;
+            }
+
+            .col-title {
+                font-size: 13px;
+                margin-bottom: 8px;
+            }
+
+            .cam-canvas-box {
+                height: 180px;
+            }
+
+            .samples-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .train-card {
+                padding: 14px;
+            }
+
+            .train-btn {
+                padding: 12px;
+                font-size: 14px;
+                margin-top: 10px;
+            }
+
+            .output-label {
+                width: 58px;
+                font-size: 11px;
+            }
+
+            .action-btn {
+                padding: 12px;
+                font-size: 13px;
+            }
+
+            .k230-settings {
+                font-size: 11px;
+                padding: 8px;
+            }
+
+            .tips-box,
+            .warn-box {
+                font-size: 11px;
+                padding: 8px 10px;
+                margin-top: 8px;
+            }
+        }
     </style>
 </head>
 
@@ -1729,39 +1890,7 @@
                 const countEl = document.getElementById(`count-${classIdx}`);
                 if (countEl) countEl.textContent = count + ' sample' + (count !== 1 ? 's' : '');
 
-                let grid = document.getElementById(`thumbs-${classIdx}`);
-                if (grid) {
-                    if (grid.classList.contains('no-samples-hint')) {
-                        const newGrid = document.createElement('div');
-                        newGrid.className = 'samples-grid';
-                        newGrid.id = `thumbs-${classIdx}`;
-                        grid.parentNode.replaceChild(newGrid, grid);
-                        grid = newGrid;
-                    }
-                    const wrap = document.createElement('div'); wrap.className = 'thumb-wrap';
-                    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
-                    const ctx2 = cv.getContext('2d'); ctx2.putImageData(imageData, 0, 0);
-                    const del = document.createElement('button'); del.className = 'thumb-del';
-                    del.textContent = '×';
-                    del.onclick = (() => {
-                        const ci = classIdx, si = thumbIdx, di = datasetIdx;
-                        return () => {
-                            dataset.splice(di, 1);
-                            Object.keys(thumbnailDatasetIdx).forEach(k => {
-                                thumbnailDatasetIdx[k] = thumbnailDatasetIdx[k].map(x => x > di ? x - 1 : x);
-                            });
-                            thumbnailStore[ci].splice(si, 1);
-                            thumbnailDatasetIdx[ci].splice(si, 1);
-                            classCounts[classes[ci].name] = Math.max(0, (classCounts[classes[ci].name] || 1) - 1);
-                            const cEl = document.getElementById(`count-${ci}`);
-                            if (cEl) cEl.textContent = classCounts[classes[ci].name] + ' samples';
-                            wrap.remove(); renderStats();
-                        };
-                    })();
-                    wrap.appendChild(cv); wrap.appendChild(del);
-                    grid.appendChild(wrap);
-                }
-
+                rebuildPoseThumbs(classIdx);
                 renderStats();
                 setStatus(`✓ Captured sample ${count} for "${cls.name}" (conf: ${(avgScore * 100).toFixed(0)}%)`);
 
@@ -1771,6 +1900,56 @@
             } finally {
                 isCapturing = false;
             }
+        }
+
+        function rebuildPoseThumbs(classIdx) {
+            const cls = classes[classIdx];
+            let grid = document.getElementById(`thumbs-${classIdx}`);
+            if (!grid) return;
+
+            const stored = thumbnailStore[classIdx] || [];
+            if (stored.length === 0) {
+                grid.className = 'no-samples-hint';
+                grid.innerHTML = `
+                    <div style="font-size:28px">🧘</div>
+                    <div>Hold the button to capture poses</div>
+                `;
+                return;
+            }
+
+            grid.className = 'samples-grid';
+            grid.innerHTML = '';
+
+            stored.forEach((canvasData, si) => {
+                const wrap = document.createElement('div'); wrap.className = 'thumb-wrap';
+                const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+                const ctx2 = cv.getContext('2d'); ctx2.putImageData(canvasData, 0, 0);
+                const del = document.createElement('button'); del.className = 'thumb-del';
+                del.textContent = '×';
+                del.onclick = () => {
+                    const globalIdx = thumbnailDatasetIdx[classIdx][si];
+                    if (globalIdx !== undefined) {
+                        dataset.splice(globalIdx, 1);
+                        Object.keys(thumbnailDatasetIdx).forEach(ci => {
+                            thumbnailDatasetIdx[ci] = thumbnailDatasetIdx[ci].map(di => di > globalIdx ? di - 1 : di);
+                        });
+                    }
+                    thumbnailStore[classIdx].splice(si, 1);
+                    thumbnailDatasetIdx[classIdx].splice(si, 1);
+                    classCounts[cls.name] = Math.max(0, (classCounts[cls.name] || 1) - 1);
+                    
+                    const countEl = document.getElementById(`count-${classIdx}`);
+                    if (countEl) {
+                        const count = classCounts[cls.name] || 0;
+                        countEl.textContent = count + ' sample' + (count !== 1 ? 's' : '');
+                    }
+                    
+                    renderStats();
+                    rebuildPoseThumbs(classIdx);
+                };
+                wrap.appendChild(cv); wrap.appendChild(del);
+                grid.appendChild(wrap);
+            });
         }
 
         // ──────────────────────────────────────────────────────────────
@@ -1850,37 +2029,7 @@
             });
 
             classes.forEach((cls, idx) => {
-                const grid = document.getElementById(`thumbs-${idx}`);
-                if (!grid) return;
-                const stored = thumbnailStore[idx];
-                if (!stored || !stored.length) return;
-                if (grid.classList.contains('no-samples-hint')) {
-                    grid.className = 'samples-grid';
-                    grid.innerHTML = '';
-                }
-                stored.forEach((canvasData, si) => {
-                    const wrap = document.createElement('div'); wrap.className = 'thumb-wrap';
-                    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
-                    const ctx2 = cv.getContext('2d'); ctx2.putImageData(canvasData, 0, 0);
-                    const del = document.createElement('button'); del.className = 'thumb-del';
-                    del.textContent = '×';
-                    del.onclick = () => {
-                        const globalIdx = thumbnailDatasetIdx[idx][si];
-                        if (globalIdx !== undefined) {
-                            dataset.splice(globalIdx, 1);
-                            Object.keys(thumbnailDatasetIdx).forEach(ci => {
-                                thumbnailDatasetIdx[ci] = thumbnailDatasetIdx[ci].map(di => di > globalIdx ? di - 1 : di);
-                            });
-                        }
-                        thumbnailStore[idx].splice(si, 1);
-                        thumbnailDatasetIdx[idx].splice(si, 1);
-                        classCounts[cls.name] = Math.max(0, (classCounts[cls.name] || 1) - 1);
-                        renderStats();
-                        render();
-                    };
-                    wrap.appendChild(cv); wrap.appendChild(del);
-                    grid.appendChild(wrap);
-                });
+                rebuildPoseThumbs(idx);
             });
         }
 
@@ -1920,6 +2069,7 @@
         function renameClass(idx, newName) {
             const cls = classes[idx];
             const oldName = cls.name;
+            if (oldName === newName) return;
             if (classCounts[oldName] !== undefined) {
                 classCounts[newName] = classCounts[oldName];
                 delete classCounts[oldName];

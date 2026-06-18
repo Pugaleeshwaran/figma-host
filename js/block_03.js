@@ -97,12 +97,15 @@
                         if (workspaceGroup) {
                           const clipUrl = workspaceGroup.getAttribute('clip-path');
                           if (clipUrl) {
-                            const clipId = clipUrl.replace(/url\(['"]?#?|['"]?\)/g, '');
-                            const clipPathElem = document.getElementById(clipId);
-                            if (clipPathElem) {
-                              const rect = clipPathElem.querySelector('rect');
-                              if (rect) {
-                                rect.setAttribute('height', fh);
+                            const match = clipUrl.match(/#([^'"\)]+)/);
+                            if (match && match[1]) {
+                              const clipId = match[1].trim();
+                              const clipPathElem = document.getElementById(clipId);
+                              if (clipPathElem) {
+                                const rect = clipPathElem.querySelector('rect');
+                                if (rect) {
+                                  rect.setAttribute('height', fh);
+                                }
                               }
                             }
                           }
@@ -142,6 +145,232 @@
               setTimeout(() => { flyout.position(); }, 10);
             };
           }
+
+          /* ═══════════════════════════════════════════════════════
+             MBLOCK HOVER REVEAL — fixed:
+             - Flyout panel stays STATIC (background never resized)
+             - On hover: widen ALL clip-paths inside flyout + unlock
+               overflow on parent containers so content is visible
+             - On leave: everything restored
+             ═══════════════════════════════════════════════════════ */
+          (function mblockReveal(flyout) {
+
+            var isOpen        = false;
+            var enterTimer    = null;
+            var leaveTimer    = null;
+            var origSvgW      = null;
+            var origSvgStyleW = null;
+            var savedClips    = [];   // [{rect, origW}]
+            var savedParents  = [];   // [{el, overflow, overflowX}]
+
+            /* ── helpers ─────────────────────────────── */
+
+            function getSVG() {
+              var el = flyout.svgGroup_;
+              while (el && el.tagName && el.tagName.toLowerCase() !== 'svg') {
+                el = el.parentElement;
+              }
+              return el || null;
+            }
+
+            function getClipRects() {
+              var g = flyout.svgGroup_;
+              if (!g) return [];
+              var rects = [];
+              var elements = Array.prototype.slice.call(g.getElementsByTagName('*'));
+              elements.push(g);
+              elements.forEach(function(el) {
+                var url = el.getAttribute('clip-path') || (el.style && el.style.clipPath) || window.getComputedStyle(el).clipPath;
+                if (url && url !== 'none') {
+                  var match = url.match(/#([^'"\)]+)/);
+                  if (match && match[1]) {
+                    var id = match[1].trim();
+                    var clipEl = document.getElementById(id);
+                    if (clipEl) {
+                      var rect = clipEl.querySelector('rect');
+                      if (rect && rects.indexOf(rect) === -1) {
+                        rects.push(rect);
+                      }
+                    }
+                  }
+                }
+              });
+              return rects;
+            }
+
+            /* Set overflow:visible on element and save previous value */
+            function unlockOverflow(el) {
+              if (!el || !el.style) return;
+              for (var i = 0; i < savedParents.length; i++) {
+                if (savedParents[i].el === el) return;
+              }
+              savedParents.push({
+                el       : el,
+                overflow : el.style.overflow,
+                overflowX: el.style.overflowX
+              });
+              el.style.overflow  = 'visible';
+              el.style.overflowX = 'visible';
+            }
+
+            /* ── show full block content ───────────────── */
+
+            function showFull() {
+              if (isOpen) return;
+              isOpen = true;
+              savedParents = [];
+              savedClips = [];
+
+              try {
+                // 1. Widen all flyout clip-path rects
+                var rects = getClipRects();
+                rects.forEach(function(rect) {
+                  var origW = rect.getAttribute('width');
+                  savedClips.push({ rect: rect, origW: origW });
+                  Element.prototype.setAttribute.call(rect, 'width', '99999');
+                });
+
+                // 2. Unlock overflow on flyout group, SVG, and all parent HTML elements
+                var g = flyout.svgGroup_;
+                if (g) {
+                  unlockOverflow(g);
+                  
+                  var ws = g.querySelector('.blocklyWorkspace');
+                  if (ws) {
+                    unlockOverflow(ws);
+                  }
+                }
+
+                var svgEl = getSVG();
+                unlockOverflow(svgEl);
+                if (svgEl) {
+                  // Save and physically widen the flyout SVG so browser won't clip blocks
+                  if (origSvgW === null) origSvgW = svgEl.getAttribute('width');
+                  svgEl.setAttribute('width', '99999');
+
+                  if (origSvgStyleW === null) origSvgStyleW = svgEl.style.width;
+                  svgEl.style.setProperty('width', '99999px', 'important');
+
+                  var parent = svgEl.parentElement;
+                  while (parent) {
+                    unlockOverflow(parent);
+                    parent = parent.parentElement;
+                  }
+                }
+                // Also explicitly target #blocklyDiv which Blockly clips
+                var bd = document.getElementById('blocklyDiv');
+                if (bd) {
+                  unlockOverflow(bd);
+                }
+              } catch (e) {
+                console.error("Flyout reveal error: " + e.message);
+              }
+            }
+
+            /* ── hide: restore everything ──────────────── */
+
+            function hideFull() {
+              isOpen = false;
+
+              // Restore clip-paths
+              savedClips.forEach(function(item) {
+                if (item.rect && item.origW !== null) {
+                  Element.prototype.setAttribute.call(item.rect, 'width', item.origW);
+                }
+              });
+              savedClips = [];
+
+              // Restore SVG width and style width
+              var svgEl = getSVG();
+              if (svgEl) {
+                if (origSvgW !== null) svgEl.setAttribute('width', origSvgW);
+                if (origSvgStyleW !== null) svgEl.style.width = origSvgStyleW;
+              }
+              origSvgW = null;
+              origSvgStyleW = null;
+
+              // Restore all parent overflow values
+              savedParents.forEach(function(item) {
+                item.el.style.overflow  = item.overflow;
+                item.el.style.overflowX = item.overflowX;
+              });
+              savedParents = [];
+            }
+
+            /* ── debounced mouse handlers ───────────────── */
+
+            function onEnter() {
+              clearTimeout(leaveTimer);
+              clearTimeout(enterTimer);
+              enterTimer = setTimeout(showFull, 20);
+            }
+
+            function onLeave() {
+              clearTimeout(enterTimer);
+              leaveTimer = setTimeout(function() {
+                // Safeguard: do not collapse if blockly dropdown or widget div is open
+                if (typeof Blockly !== 'undefined') {
+                  if ((Blockly.WidgetDiv && Blockly.WidgetDiv.isVisible && Blockly.WidgetDiv.isVisible()) ||
+                      (Blockly.DropDownDiv && Blockly.DropDownDiv.isVisible && Blockly.DropDownDiv.isVisible())) {
+                    // Re-schedule leave check
+                    onLeave();
+                    return;
+                  }
+                }
+                hideFull();
+              }, 150);
+            }
+
+            /* ── attach to the flyout background and workspace ───── */
+
+            function attach() {
+              var g = flyout.svgGroup_;
+              if (!g) return;
+
+              // 1. Attach to the background path
+              var bg = g.querySelector('.blocklyFlyoutBackground');
+              if (bg && !bg.__mblockRevealAttached) {
+                bg.__mblockRevealAttached = true;
+                bg.style.pointerEvents = 'all';
+                bg.addEventListener('mouseenter', onEnter);
+                bg.addEventListener('mouseleave', onLeave);
+              }
+
+              // 2. Attach to the workspace container (which holds the blocks)
+              var ws = g.querySelector('.blocklyWorkspace');
+              if (ws && !ws.__mblockRevealAttached) {
+                ws.__mblockRevealAttached = true;
+                ws.addEventListener('mouseenter', onEnter);
+                ws.addEventListener('mouseleave', onLeave);
+              }
+
+              // 3. Fallback: also attach to the group container g itself
+              if (!g.__mblockRevealAttached) {
+                g.__mblockRevealAttached = true;
+                g.addEventListener('mouseenter', onEnter);
+                g.addEventListener('mouseleave', onLeave);
+              }
+            }
+
+            /* ── hook flyout.show ───────────────────────── */
+
+            var _orig = flyout.show.bind(flyout);
+            flyout.show = function(xml) {
+              if (isOpen) {
+                hideFull();
+              }
+              _orig(xml);
+              isOpen    = false;
+              savedClips = [];
+              savedParents = [];
+              setTimeout(attach, 80);
+            };
+
+            setTimeout(attach, 500);
+
+          })(flyout);
+          /* ═══════════════════════ END MBLOCK REVEAL ════════════════════════ */
+
         }
       }, 100);
     })();

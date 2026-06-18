@@ -2014,6 +2014,8 @@
         }
 
         function renameClass(idx, name) {
+            const oldName = classes[idx].name;
+            if (oldName === name) return;
             classes[idx].name = name;
             renderStats();
             const labelEl = document.getElementById(`output-label-${idx}`);
@@ -2025,8 +2027,16 @@
             const countEl = document.getElementById(`count-${classIdx}`);
             if (countEl) countEl.textContent = `${classes[classIdx].images.length} samples`;
             const thumbs = document.getElementById(`thumbs-${classIdx}`);
-            if (thumbs) thumbs.children[imgIdx]?.remove();
+            if (thumbs) {
+                thumbs.innerHTML = classes[classIdx].images.map((img, idx) => `
+            <div class="thumb-wrap">
+                <img src="${img.url}" alt="sample"/>
+                <button class="thumb-del"
+                    onclick="removeImage(${classIdx},${idx})">✕</button>
+            </div>`).join('');
+            }
             renderStats();
+            saveState();
         }
 
         // ══════════════════════════════════════════════════════════════

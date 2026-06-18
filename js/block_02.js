@@ -2546,7 +2546,7 @@ function defineBlocks() {
     { type: "do_servo", message0: "servo on %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "SERVO_PORT", text: "" }, { type: "field_number", name: "ANG", value: 45, min: 0, max: 360, precision: 1 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["servo_image_click", "servo_color"] },
     { type: "bt_send", message0: "Bluetooth send %1", args0: [{ type: "input_value", name: "TEXT" }], previousStatement: null, nextStatement: null, style: "control_blocks", extensions: ["servo_color"] },
     { type: "do_led", message0: "LED %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "servo_color"] },
-    { type: "ctl_delay", message0: "Sleep%1 ms", args0: [{ type: "field_number", name: "MS", value: 500, min: 0, max: 600000 }], style: "led_blocks", previousStatement: null, nextStatement: null, extensions: ["dummy_style"] },
+    { type: "ctl_delay", message0: "Delay%1 ms", args0: [{ type: "field_number", name: "MS", value: 500, min: 0, max: 600000 }], style: "led_blocks", previousStatement: null, nextStatement: null, extensions: ["dummy_style"] },
     { type: "lp_while", message0: "while %1", args0: [{ type: "input_value", name: "COND", check: "Boolean" }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_break", message0: "break", previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_continue", message0: "continue", previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
@@ -6036,6 +6036,8 @@ async function start() {
     const container = document.getElementById('flyoutSearchContainer');
     const input = document.getElementById('flyoutSearchInput');
     const clearBtn = document.getElementById('flyoutSearchClear');
+    const emptyState = document.getElementById('searchEmptyState');
+    const noResultsState = document.getElementById('searchNoResults');
     if (!container || !input) return;
 
     // Prevent clicking inside the search box from bubbling up to document and triggering Blockly.hideChaff()
@@ -6129,32 +6131,40 @@ async function start() {
         // Position perfectly centered inside the dark blue flyout panel
         const _positionSearch = () => {
           try {
-            const toolboxElement = document.querySelector('.blocklyToolboxDiv, .blocklyToolbox');
+            const toolboxEl = document.querySelector('.blocklyToolboxDiv, .blocklyToolbox');
+            // offsetParent of the container (inside .topbar) — used to convert
+            // viewport coords into the correct local offset
+            const parent = container.offsetParent || document.body;
+            const tbRect = toolboxEl.getBoundingClientRect();
+            const pRect = parent.getBoundingClientRect();
 
-            // Calculate exact left edge of the dark blue flyout
-            const flyoutLeft = toolboxElement ? (toolboxElement.offsetLeft + toolboxElement.offsetWidth) : 215;
-            const flyoutTop = toolboxElement ? toolboxElement.offsetTop : 20;
+            // Left edge of flyout relative to the container's offsetParent
+            const relLeft = tbRect.right - pRect.left;
+            // Top of toolbox relative to the container's offsetParent
+            const relTop = tbRect.top - pRect.top;
+            // Search input: 300px wide, 12px inside flyout, 14px from top
+            container.style.left = (relLeft + 12) + 'px';
+            container.style.width = '276px';
+            container.style.top = (relTop + 14) + 'px';
 
-            let fw = 240;
-            let flyoutWidth = 280;
-            try {
-              const flyout = workspace.getToolbox().getFlyout();
-              if (flyout && flyout.getWidth) {
-                flyoutWidth = flyout.getWidth();
-                if (flyoutWidth > 50) fw = flyoutWidth - 40; // 20px padding on both sides
-              }
-            } catch (_) { }
-
-            // Center horizontally within the flyout width
-            const centeredLeft = flyoutLeft + (flyoutWidth - fw) / 2;
-
-            container.style.left = centeredLeft + 'px';
-            container.style.width = fw + 'px';
-            container.style.top = (flyoutTop + 20) + 'px'; // 20px padding from the top inside the flyout
+            // Empty / no-results states: same size as the toolbox panel
+            [emptyState, noResultsState].forEach(el => {
+              if (!el) return;
+              el.style.left = relLeft + 'px';
+              el.style.top = relTop + 'px';
+              el.style.width = '300px';
+              el.style.height = tbRect.height + 'px';
+            });
           } catch (_) {
-            container.style.left = '235px';
-            container.style.width = '240px';
-            container.style.top = '40px';
+            container.style.left = '227px';
+            container.style.width = '276px';
+            container.style.top = '55px';
+            if (emptyState) {
+              emptyState.style.left = '215px';
+              emptyState.style.top = '55px';
+              emptyState.style.width = '300px';
+              emptyState.style.height = 'calc(100vh - 110px)';
+            }
           }
         };
         _positionSearch();
@@ -6166,6 +6176,11 @@ async function start() {
         }
         if (container.classList.contains('hidden')) {
           container.classList.remove('hidden');
+          // Show empty state if no query
+          if (emptyState && !input.value.trim()) {
+            emptyState.classList.remove('hidden');
+          }
+          if (noResultsState) noResultsState.classList.add('hidden');
           setTimeout(() => input.focus(), 60);
         }
       } else {
@@ -6181,6 +6196,8 @@ async function start() {
             return;
           }
           container.classList.add('hidden');
+          if (emptyState) emptyState.classList.add('hidden');
+          if (noResultsState) noResultsState.classList.add('hidden');
 
           // Clear search when it hides so the next time it opens or after a block is dragged, it's empty
           if (input.value !== '') {
@@ -6194,7 +6211,23 @@ async function start() {
     // ── Input handler — force flyout redraw on every keystroke ────────
     let _debounce = null;
     input.addEventListener('input', function () {
+      const q = input.value.trim().toLowerCase();
       clearBtn.style.display = input.value ? 'flex' : 'none';
+
+      if (!q) {
+        // No query — show empty state, hide no-results
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (noResultsState) noResultsState.classList.add('hidden');
+      } else {
+        if (emptyState) emptyState.classList.add('hidden');
+        // Check hits immediately so no-results shows without waiting for debounce
+        const words = q.split(/\s+/);
+        const hasHits = searchIndex.some(b => words.every(w => b.search.includes(w)));
+        if (noResultsState) {
+          if (hasHits) noResultsState.classList.add('hidden');
+          else noResultsState.classList.remove('hidden');
+        }
+      }
       clearTimeout(_debounce);
       _debounce = setTimeout(function () {
         const toolbox = workspace.getToolbox();
@@ -6217,6 +6250,8 @@ async function start() {
     clearBtn.addEventListener('click', function () {
       input.value = '';
       clearBtn.style.display = 'none';
+      if (emptyState) emptyState.classList.remove('hidden');
+      if (noResultsState) noResultsState.classList.add('hidden');
       input.dispatchEvent(new Event('input'));
       input.focus();
     });
@@ -6242,6 +6277,7 @@ async function start() {
   }
 
   initBlockSearch();
+
 
   // ════════════════════════════════════════════════════════════════
   // UI ENHANCEMENT SUITE

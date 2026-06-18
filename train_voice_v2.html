@@ -970,7 +970,7 @@ async function recordClip(classIdx){
         const count=embeddings[cls.name].length;
         const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=count+' clips';
         const visCount=document.getElementById('vis-count-'+classIdx);if(visCount)visCount.textContent=count+' clips';
-        addThumb(classIdx,pcm,emb,count-1);renderStats();
+        rebuildVoiceThumbs(classIdx);renderStats();
         trained=false;updateButtons();
         setStatus('Clip '+count+' for "'+cls.name+'" — '+(pcm.length/SR).toFixed(2)+'s -> '+computeNWindows(CLIP_MS)+' windows -> '+EMBED_DIM+'-dim');
     }catch(e){setStatus('Record error: '+e.message);console.error(e);}
@@ -1007,17 +1007,28 @@ async function playClip(classIdx,clipIdx,btnEl){
     }catch(e){setStatus('Playback error: '+e.message);}
 }
 
-function addThumb(classIdx,pcm,emb,clipIdx){
+function rebuildVoiceThumbs(classIdx){
     const cls=classes[classIdx];
     const thumbsEl=document.getElementById('thumbs-'+classIdx);if(!thumbsEl)return;
-    const wrap=document.createElement('div');wrap.className='thumb';
-    const cv=document.createElement('canvas');cv.width=44;cv.height=26;
-    drawWaveThumb(cv,pcm,cls.color);
-    const del=document.createElement('button');del.className='thumb-del';del.textContent='X';
-    del.onclick=()=>{wrap.remove();if(classAudio[cls.name])classAudio[cls.name].splice(clipIdx,1);if(embeddings[cls.name])embeddings[cls.name].splice(clipIdx,1);const count=(embeddings[cls.name]||[]).length;const ce=document.getElementById('cc-count-'+classIdx);if(ce)ce.textContent=count+' clips';renderStats();trained=false;updateButtons();};
-    const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';play.title=(pcm.length/SR).toFixed(2)+'s @ 16kHz';
-    (()=>{const pi=clipIdx;play.onclick=()=>playClip(classIdx,pi,play);})();
-    wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);
+    thumbsEl.innerHTML='';
+    const audioClips=classAudio[cls.name]||[];
+    audioClips.forEach((pcm,ci)=>{
+        const wrap=document.createElement('div');wrap.className='thumb';
+        const cv=document.createElement('canvas');cv.width=44;cv.height=26;
+        drawWaveThumb(cv,pcm,cls.color);
+        const del=document.createElement('button');del.className='thumb-del';del.textContent='X';
+        del.onclick=()=>{
+            if(classAudio[cls.name])classAudio[cls.name].splice(ci,1);
+            if(embeddings[cls.name])embeddings[cls.name].splice(ci,1);
+            const count=(embeddings[cls.name]||[]).length;
+            const ce=document.getElementById('cc-count-'+classIdx);if(ce)ce.textContent=count+' clips';
+            renderStats();trained=false;updateButtons();
+            rebuildVoiceThumbs(classIdx);
+        };
+        const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';play.title=(pcm.length/SR).toFixed(2)+'s @ 16kHz';
+        play.onclick=()=>playClip(classIdx,ci,play);
+        wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);
+    });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────
@@ -1066,18 +1077,7 @@ function renderClasses(){
             <button class="download-btn-card" onclick="downloadClassClips(${idx})">⬇ Download Clips (${count} WAV)</button>
         </div>`:''}`;
         container.appendChild(card);
-        const thumbsEl=card.querySelector('#thumbs-'+idx);
-        const audioClips=classAudio[cls.name]||[];
-        audioClips.forEach((pcm,ci)=>{
-            const wrap=document.createElement('div');wrap.className='thumb';
-            const cv=document.createElement('canvas');cv.width=44;cv.height=26;
-            drawWaveThumb(cv,pcm,cls.color);
-            const del=document.createElement('button');del.className='thumb-del';del.textContent='X';
-            del.onclick=(()=>{const ci2=ci;return()=>{wrap.remove();if(classAudio[cls.name])classAudio[cls.name].splice(ci2,1);if(embeddings[cls.name])embeddings[cls.name].splice(ci2,1);const c=(embeddings[cls.name]||[]).length;const ce=document.getElementById('cc-count-'+idx);if(ce)ce.textContent=c+' clips';renderStats();trained=false;updateButtons();};})();
-            const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';
-            (()=>{const pi=ci;play.onclick=()=>playClip(idx,pi,play);})();
-            wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);
-        });
+        rebuildVoiceThumbs(idx);
         if(isRec&&micAnalyser)animateMicVis(idx);
     });
 }
@@ -1095,7 +1095,7 @@ function renderStats(){
 function addClass(){const id=nextClassId++;classes.push({id,name:'Word'+id,color:COLORS[(id-1)%COLORS.length]});render();}
 function addNoiseClass(){if(classes.find(c=>isNoise(c.name))){alert('Noise class already exists!');return;}classes.push({id:nextClassId++,name:'Background Noise',color:'#fbbf24'});render();setStatus('Noise class added — record silence or ambient room sound.');}
 function removeClass(idx){if(classes.length<=2){alert('Need at least 2 classes');return;}if(activeMicIdx===idx)stopMic();const cls=classes[idx];delete embeddings[cls.name];delete classAudio[cls.name];classes.splice(idx,1);trained=false;updateButtons();render();}
-function renameClass(idx,name){const cls=classes[idx];const old=cls.name;if(embeddings[old]){embeddings[name]=embeddings[old];delete embeddings[old];}if(classAudio[old]){classAudio[name]=classAudio[old];delete classAudio[old];}cls.name=name;renderStats();const lEl=document.getElementById('output-label-'+idx);if(lEl){lEl.textContent=name;lEl.style.color=cls.color;}}
+function renameClass(idx,name){const cls=classes[idx];const old=cls.name;if(old===name)return;if(embeddings[old]){embeddings[name]=embeddings[old];delete embeddings[old];}if(classAudio[old]){classAudio[name]=classAudio[old];delete classAudio[old];}cls.name=name;renderStats();const lEl=document.getElementById('output-label-'+idx);if(lEl){lEl.textContent=name;lEl.style.color=cls.color;}}
 
 // ── Extract x2 ────────────────────────────────────────────────────────────
 function extractClips(classIdx){
@@ -1106,8 +1106,7 @@ function extractClips(classIdx){
     const newCount=embeddings[cls.name].length;
     const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=newCount+' clips';
     renderStats();trained=false;updateButtons();
-    const thumbsEl=document.getElementById('thumbs-'+classIdx);
-    if(thumbsEl){audio.forEach((pcm,i)=>{const ni=embs.length+i;const wrap=document.createElement('div');wrap.className='thumb';const cv=document.createElement('canvas');cv.width=44;cv.height=26;drawWaveThumb(cv,pcm,cls.color);const del=document.createElement('button');del.className='thumb-del';del.textContent='X';del.onclick=()=>{wrap.remove();if(embeddings[cls.name])embeddings[cls.name].splice(ni,1);if(classAudio[cls.name])classAudio[cls.name].splice(ni,1);renderStats();};const play=document.createElement('button');play.className='thumb-play';play.textContent='▶';(()=>{const pi=ni;play.onclick=()=>playClip(classIdx,pi,play);})();wrap.appendChild(cv);wrap.appendChild(del);wrap.appendChild(play);thumbsEl.appendChild(wrap);});}
+    rebuildVoiceThumbs(classIdx);
     setStatus('"'+cls.name+'" doubled to '+newCount+' clips. Re-train.');
 }
 
@@ -1128,7 +1127,7 @@ function uploadWav(classIdx){
                     if(!embeddings[cls.name])embeddings[cls.name]=[];if(!classAudio[cls.name])classAudio[cls.name]=[];
                     embeddings[cls.name].push(emb);classAudio[cls.name].push(padded);
                     const count=embeddings[cls.name].length;const countEl=document.getElementById('cc-count-'+classIdx);if(countEl)countEl.textContent=count+' clips';
-                    addThumb(classIdx,padded,emb,count-1);renderStats();
+                    rebuildVoiceThumbs(classIdx);renderStats();
                     setStatus('WAV clip '+(ci+1)+'/'+numClips+' embedded for "'+cls.name+'"');
                 }
                 trained=false;updateButtons();setStatus('"'+file.name+'" -> '+numClips+' clips added for "'+cls.name+'"');
