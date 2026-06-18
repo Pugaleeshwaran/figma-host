@@ -319,13 +319,8 @@ function cpAiClearChat() {
   if (chips) chips.style.display = 'flex';
 }
 
-// Automatically seed/update the OpenRouter API key and model on load
+// Set default model on load
 (function() {
-  // Always keep the API key up to date
-  var CURRENT_KEY = 'YOUR_KEY_HERE';
-  localStorage.setItem('openrouter_api_key', CURRENT_KEY);
-  console.log('OpenRouter API key applied.');
-
   // Valid free models as of June 2026 — reset to default if stored model is outdated/paid
   var FREE_MODELS = [
     'nex-agi/nex-n2-pro:free',
