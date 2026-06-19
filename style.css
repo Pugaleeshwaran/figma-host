@@ -824,7 +824,7 @@
     }
 
     .block-servo>.blocklyPath {
-      fill: url(#gradServo) !important;
+      fill: #F266C1 !important;
       stroke-width: 1;
       stroke: #F266C1;
     }
@@ -839,38 +839,56 @@
     }
 
     .led_style>.blocklyPath {
-      fill: url(#gradled) !important;
+      fill: #BF0B2C !important;
       stroke-width: 1;
       stroke: #8C041D;
     }
 
     .dummy_block>.blocklyPath {
-      fill: url(#dummy_style);
+      fill: #79A637 !important;
       stroke-width: 1px;
       stroke: #79A637;
     }
 
     .block_dc>.blocklyPath {
-      fill: url(#graddc);
+      fill: #D97A07 !important;
       stroke-width: 1px;
       stroke: #F2C744;
     }
 
     .temp_style>.blocklyPath {
-      fill: url(#temp_style);
+      fill: #0FB881 !important;
       stroke-width: 1px;
-      stroke: #73168C;
+      stroke: #0B8F64;
     }
 
     .ultra_style>.blocklyPath {
-      fill: url(#ultra_style);
+      fill: #593A28 !important;
       stroke-width: 1px;
       stroke: #593A28;
     }
 
     .defult_style>.blocklyPath {
-      fill: url(#gradDefault);
+      fill: #2685BF !important;
       stroke: #2685BF;
+      stroke-width: 1px;
+    }
+
+    .pwm_style>.blocklyPath {
+      fill: #F49E09 !important;
+      stroke: #B87504;
+      stroke-width: 1px;
+    }
+
+    .led_category_style>.blocklyPath {
+      fill: #22C45D !important;
+      stroke: #15803D;
+      stroke-width: 1px;
+    }
+
+    .txrx_category_style>.blocklyPath {
+      fill: #3B82F6 !important;
+      stroke: #1D4ED8;
       stroke-width: 1px;
     }
 

@@ -188,7 +188,7 @@
           ]
         },
         {
-          kind: 'category', name: 'Llm', colour: '#DEEAFB', id: 'cat_delay', contents: [
+          kind: 'category', name: 'Llm', colour: '#D8EFF9', id: 'cat_llm', contents: [
             { kind: 'block', type: 'llm_text' },
           ]
         },

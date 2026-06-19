@@ -2873,9 +2873,9 @@
       display: none !important;
     }
 
-    /* ── Gradient fills: only target the FIRST .blocklyPath via :first-of-type ── */
+    /* ── Solid fills (gradient color removed): only target the FIRST .blocklyPath via :first-of-type ── */
     .block-servo>.blocklyPath:first-of-type {
-      fill: url(#gradServo) !important;
+      fill: #F266C1 !important;
       stroke-width: 1;
       stroke: #F266C1;
     }
@@ -3192,45 +3192,69 @@
     }
 
     .led_style>.blocklyPath:first-of-type {
-      fill: url(#gradled) !important;
+      fill: #BF0B2C !important;
       stroke-width: 1;
       stroke: #8C041D;
     }
 
     .dummy_block>.blocklyPath:first-of-type {
-      fill: url(#gradDummy) !important;
+      fill: #79A637 !important;
       stroke-width: 1px;
       stroke: #79A637;
     }
 
     .block_dc>.blocklyPath:first-of-type {
-      fill: url(#gradDc) !important;
+      fill: #D97A07 !important;
       stroke-width: 1px;
       stroke: #F2C744;
     }
 
     .temp_style>.blocklyPath:first-of-type {
-      fill: url(#gradTemp) !important;
+      fill: #0FB881 !important;
       stroke-width: 1px;
       stroke: #0B8F64;
     }
 
     .i2c_style>.blocklyPath:first-of-type {
-      fill: url(#gradI2c) !important;
+      fill: #8A5BF7 !important;
       stroke-width: 1px;
       stroke: #5D37B0;
     }
 
     .ultra_style>.blocklyPath:first-of-type {
-      fill: url(#ultra_style) !important;
+      fill: #593A28 !important;
       stroke-width: 1px;
       stroke: #593A28;
     }
 
     .defult_style>.blocklyPath:first-of-type {
-      fill: url(#gradDefault) !important;
+      fill: #2685BF !important;
       stroke: #2685BF;
       stroke-width: 1px;
+    }
+
+    .pwm_style>.blocklyPath:first-of-type {
+      fill: #F49E09 !important;
+      stroke-width: 1px;
+      stroke: #B87504;
+    }
+
+    .led_category_style>.blocklyPath:first-of-type {
+      fill: #22C45D !important;
+      stroke-width: 1px;
+      stroke: #15803D;
+    }
+
+    .txrx_category_style>.blocklyPath:first-of-type {
+      fill: #3B82F6 !important;
+      stroke-width: 1px;
+      stroke: #1D4ED8;
+    }
+
+    .spi_category_style>.blocklyPath:first-of-type {
+      fill: #EB4899 !important;
+      stroke-width: 1px;
+      stroke: #BE185D;
     }
 
     #wifiSettingsModal {

@@ -1767,60 +1767,51 @@ function closeServoModal() { destroyServo3D(); document.getElementById('servoSel
 // GRADIENTS & SHADOWS (v12 multi-layer fix)
 // =====================================================================
 const CURIO_GRAD_CSS = `
-        /* Only target the FIRST .blocklyPath ΓÇö extra paths must stay hidden */
-        .defult_style > .blocklyPath:first-of-type  { fill: url(#gradDefault) !important; stroke: #2685BF; stroke-width:1px; }
-        .led_style    > .blocklyPath:first-of-type  { fill: url(#gradled)     !important; stroke: #8C041D; stroke-width:1px; }
-        .dummy_block  > .blocklyPath:first-of-type  { fill: url(#gradDummy)   !important; stroke: #79A637; stroke-width:1px; }
-        .block_dc     > .blocklyPath:first-of-type  { fill: url(#gradDc)      !important; stroke: #F2C744; stroke-width:1px; }
-        .temp_style   > .blocklyPath:first-of-type  { fill: url(#gradTemp)    !important; stroke: #0B8F64; stroke-width:1px; }
-        .block-servo  > .blocklyPath:first-of-type  { fill: url(#gradServo)   !important; stroke: #F266C1; stroke-width:1px; }
-        .i2c_style    > .blocklyPath:first-of-type  { fill: url(#gradI2c)     !important; stroke: #5D37B0; stroke-width:1px; }
-        .ultra_style  > .blocklyPath:first-of-type  { fill: url(#gradUltra)   !important; stroke: #593A28; stroke-width:1px; }
+        /* Only target the FIRST .blocklyPath — extra paths must stay hidden */
+        .defult_style > .blocklyPath:first-of-type  { fill: #2685BF           !important; stroke: #2685BF; stroke-width:1px; }
+        .led_style    > .blocklyPath:first-of-type  { fill: #BF0B2C           !important; stroke: #8C041D; stroke-width:1px; }
+        .dummy_block  > .blocklyPath:first-of-type  { fill: #79A637           !important; stroke: #79A637; stroke-width:1px; }
+        .delay_style  > .blocklyPath:first-of-type  { fill: #FB913B           !important; stroke: #C8671A; stroke-width:1px; }
+        .logic_style  > .blocklyPath:first-of-type  { fill: #04B6D4           !important; stroke: #0290A8; stroke-width:1px; }
+        .llm_style    > .blocklyPath:first-of-type  { fill: #F49E09           !important; stroke: #B87504; stroke-width:1px; }
+        .block_dc     > .blocklyPath:first-of-type  { fill: #6265F0           !important; stroke: #4A4DC8; stroke-width:1px; }
+        .temp_style   > .blocklyPath:first-of-type  { fill: #0FB881           !important; stroke: #0B8F64; stroke-width:1px; }
+        .block-servo  > .blocklyPath:first-of-type  { fill: #F266C1           !important; stroke: #F266C1; stroke-width:1px; }
+        .i2c_style    > .blocklyPath:first-of-type  { fill: #8A5BF7           !important; stroke: #5D37B0; stroke-width:1px; }
+        .ultra_style  > .blocklyPath:first-of-type  { fill: #593A28           !important; stroke: #593A28; stroke-width:1px; }
         .digital_style > .blocklyPath:first-of-type  { fill: #E57333           !important; stroke: #B84E18; stroke-width:1px; }
+        .pwm_style    > .blocklyPath:first-of-type  { fill: #F49E09           !important; stroke: #B87504; stroke-width:1px; }
+        .led_category_style > .blocklyPath:first-of-type  { fill: #22C45D           !important; stroke: #15803D; stroke-width:1px; }
+        .txrx_category_style > .blocklyPath:first-of-type  { fill: #3B82F6           !important; stroke: #1D4ED8; stroke-width:1px; }
+        .spi_category_style > .blocklyPath:first-of-type  { fill: #EB4899           !important; stroke: #BE185D; stroke-width:1px; }
         /* Hide duplicate overlay paths */
         .blocklyDraggable > .blocklyPath ~ .blocklyPath { fill: none !important; stroke: none !important; opacity: 0 !important; pointer-events: none !important; }
       `;
 
 const CURIO_GRAD_DEFS = `
-        <linearGradient id="gradDefault" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#BBE8F2"/><stop offset="50%"  stop-color="#2685BF"/><stop offset="100%" stop-color="#BBE8F2"/>
-        </linearGradient>
-        <linearGradient id="gradled" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#BF0413"/><stop offset="50%"  stop-color="#BF0B2C"/><stop offset="100%" stop-color="#8C041D"/>
-        </linearGradient>
-        <linearGradient id="gradDummy" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#B2F252"/><stop offset="50%"  stop-color="#79A637"/><stop offset="100%" stop-color="#EFF299"/>
-        </linearGradient>
-        <linearGradient id="gradDc" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#F2A922"/><stop offset="50%"  stop-color="#D97A07"/><stop offset="100%" stop-color="#F2921D"/>
-        </linearGradient>
-        <linearGradient id="gradTemp" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#26E2A3"/><stop offset="50%"  stop-color="#0FB881"/><stop offset="100%" stop-color="#26E2A3"/>
-        </linearGradient>
-        <linearGradient id="gradI2c" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#A785F9"/><stop offset="50%"  stop-color="#8A5BF7"/><stop offset="100%" stop-color="#A785F9"/>
-        </linearGradient>
-        <linearGradient id="gradServo" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#F2ACC6"/><stop offset="50%"  stop-color="#F266C1"/><stop offset="100%" stop-color="#F2ACC6"/>
-        </linearGradient>
-        <linearGradient id="gradUltra" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#8C5946"/><stop offset="50%"  stop-color="#593A28"/><stop offset="100%" stop-color="#D9B29C"/>
-        </linearGradient>
         <filter id="blueShadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#2685BF"/></filter>
         <filter id="dcshodow"     x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#D97A07"/></filter>
+        <filter id="loopshodow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#6265F0"/></filter>
         <filter id="ledshodow"    x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="5" stdDeviation="5" flood-color="#D99CA7"/></filter>
         <filter id="servoshodow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#F279BC"/></filter>
         <filter id="dummyshadow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#79A637"/></filter>
+        <filter id="delayshodow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#FB913B"/></filter>
+        <filter id="logicshodow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#04B6D4"/></filter>
+        <filter id="llmshodow"    x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#F49E09"/></filter>
         <filter id="tempshadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#0FB881"/></filter>
         <filter id="i2cshadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#8A5BF7"/></filter>
         <filter id="ultrashowdow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#8B22A8"/></filter>
         <filter id="digitalShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#c15b22"/></filter>
+        <filter id="pwmShadow"    x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#F49E09"/></filter>
+        <filter id="ledsShadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#22C45D"/></filter>
+        <filter id="txrxShadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#3B82F6"/></filter>
+        <filter id="spiShadow"    x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#EB4899"/></filter>
       `;
 
 // Shadow map kept for the direct-setAttribute fallback path
 const BLOCK_SHADOW_MAP = {
   // blue shadow
-  start: 'blueShadow',
+  start: 'logicshodow',
   sim_solar: 'blueShadow', sim_pendulum: 'blueShadow', sim_particles: 'blueShadow',
   sim_dna: 'blueShadow', sim_gears: 'blueShadow', sim_wave: 'blueShadow',
   sim_bouncing: 'blueShadow', sim_windmill: 'blueShadow', sim_atom: 'blueShadow',
@@ -1832,39 +1823,57 @@ const BLOCK_SHADOW_MAP = {
 
   // ledshodow
   port_on: 'ledshodow', port_off: 'ledshodow',
-  sen_ultrasonic: 'ledshodow', sen_temp: 'ledshodow', custom_if_then: 'ledshodow',
+  sen_ultrasonic: 'ledshodow', sen_temp: 'ledshodow',
 
   // servoshodow
-  do_onoff: 'servoshodow', do_dc_motor: 'servoshodow', do_dc_motor2: 'servoshodow',
-  do_servo: 'servoshodow', bt_send: 'servoshodow', do_led: 'servoshodow',
-  LCD_print: 'servoshodow', rgb_display: 'servoshodow',
+  do_onoff: 'servoshodow', bt_send: 'servoshodow',
   din_temp: 'tempshadow', flex_sensor: 'tempshadow', flexi_force_sensor: 'tempshadow',
   humidity: 'tempshadow', joystick_move: 'tempshadow', shock_sensor: 'tempshadow',
   TDS_Water_sensor: 'tempshadow', water_sensor: 'tempshadow',
   'water-turbidity-sensor': 'tempshadow', Air_quality_sensor: 'tempshadow',
   'flex-sensor': 'tempshadow', piezo_sensor: 'tempshadow', din_ultra_range: 'tempshadow', ana_flame: 'tempshadow',
 
+  // delayshodow
+  ctl_delay: 'delayshodow',
+  // llmshodow
+  llm_text: 'llmshodow',
   // dummyshadow
-  ctl_delay: 'dummyshadow', do_led_param: 'dummyshadow',
-  green_led: 'dummyshadow', red_led: 'dummyshadow', yellow_led: 'dummyshadow',
+  // logicshodow
+  din_if_else: 'logicshodow', custom_if_then: 'logicshodow', any_input_block: 'logicshodow',
+  system_status: 'logicshodow', logical_comparison: 'logicshodow',
 
-  // dcshodow
-  lp_while: 'dcshodow', lp_break: 'dcshodow', lp_continue: 'dcshodow', lp_repeat_count: 'dcshodow',
-  lp_label: 'dcshodow', lp_start: 'dcshodow',
+  // loopshodow (loop blocks)
+  lp_while: 'loopshodow', lp_break: 'loopshodow', lp_continue: 'loopshodow', lp_repeat_count: 'loopshodow',
+  lp_label: 'loopshodow', lp_start: 'loopshodow', compare: 'loopshodow',
+  // dcshodow (DC motor blocks)
+  bike_model: 'dcshodow', do_dc_motor: 'dcshodow', do_dc_motor2: 'dcshodow',
+  do_servo: 'dcshodow',
 
   // ultrashowdow
   sensor: 'ultrashowdow', tem_sensor: 'ultrashowdow', xray_sensor: 'ultrashowdow',
   rc_sensor: 'ultrashowdow',
 
   // tempshadow
-  ana_temp: 'tempshadow', 'Current-sensor': 'tempshadow', din_if_else: 'tempshadow',
+  ana_temp: 'tempshadow', 'Current-sensor': 'tempshadow',
   din_ultra: 'tempshadow', dust: 'tempshadow', ecg: 'tempshadow', heart_beat: 'tempshadow',
-  'IR-Temp': 'tempshadow', ldr: 'tempshadow', light_freq: 'tempshadow',
-  loop_end: 'tempshadow', soil_moisture: 'tempshadow', system_status: 'tempshadow',
+  'IR-Temp': 'tempshadow', ldr: 'tempshadow',
+  loop_end: 'tempshadow', soil_moisture: 'tempshadow',
   tank_motor: 'tempshadow', 'temp2-sensor': 'tempshadow', tep_ana: 'tempshadow',
   'vibration-switch-sensor': 'tempshadow', voltage_sensor: 'tempshadow', water_motor: 'tempshadow',
 
-  // i2cshadow
+  // ledsShadow
+  do_led_param: 'ledsShadow', do_led: 'ledsShadow', red_led: 'ledsShadow',
+  yellow_led: 'ledsShadow', green_led: 'ledsShadow', light_freq: 'ledsShadow',
+  rgb_display: 'ledsShadow', rgb_led_display: 'ledsShadow', rgb_component: 'ledsShadow',
+  LCD_print: 'ledsShadow',
+
+  // txrxShadow
+  finger_print_enroll: 'txrxShadow', finger_print_match: 'txrxShadow', keypad: 'txrxShadow',
+  gps: 'txrxShadow', gsm: 'txrxShadow', tof: 'txrxShadow', soli_npk: 'txrxShadow',
+
+  // spiShadow
+  rfid: 'spiShadow', tft: 'spiShadow',
+
   magnetic_sensor: 'i2cshadow', colour_sen: 'i2cshadow', accelerometer_sensor: 'i2cshadow',
   rtc_sensor: 'i2cshadow', 'ambient-sen': 'i2cshadow', LCD: 'i2cshadow',
   pressure: 'i2cshadow', compass: 'i2cshadow', ceprom: 'i2cshadow',
@@ -1873,7 +1882,6 @@ const BLOCK_SHADOW_MAP = {
   text_speech: 'i2cshadow', uv_sensor: 'i2cshadow', temp_sensor: 'i2cshadow',
   accelerometer: 'i2cshadow', max: 'i2cshadow',
 
-  // digitalShadow (flat #E57333)
   din_sound: 'digitalShadow', din_tilt: 'digitalShadow', din_door: 'digitalShadow',
   din_button: 'digitalShadow', din_motion: 'digitalShadow', din_proximity: 'digitalShadow',
   din_ir: 'digitalShadow', din_flame: 'digitalShadow', load_cell: 'digitalShadow',
@@ -1883,23 +1891,31 @@ const BLOCK_SHADOW_MAP = {
   touch_sensor: 'digitalShadow', peltier: 'digitalShadow', microwave_sensor: 'digitalShadow',
 };
 
-// CSS class ΓåÆ gradient map (same as mkStyleExt class names)
-const CLASS_GRAD_MAP = {
-  'defult_style': 'gradDefault',
-  'led_style': 'gradled',
-  'dummy_block': 'gradDummy',
-  'block_dc': 'gradDc',
-  'temp_style': 'gradTemp',
-  'i2c_style': 'gradI2c',
-  'block-servo': 'gradServo',
-  'ultra_style': 'gradUltra'
+// CSS class -> solid color map
+const CLASS_COLOR_MAP = {
+  'defult_style': '#2685BF',
+  'led_style': '#BF0B2C',
+  'dummy_block': '#79A637',
+  'delay_style': '#FB913B',
+  'logic_style': '#04B6D4',
+  'llm_style': '#F49E09',
+  'block_dc': '#6265F0',
+  'temp_style': '#0FB881',
+  'block-servo': '#F266C1',
+  'i2c_style': '#8A5BF7',
+  'ultra_style': '#593A28',
+  'digital_style': '#E57333',
+  'pwm_style': '#F49E09',
+  'led_category_style': '#22C45D',
+  'txrx_category_style': '#3B82F6',
+  'spi_category_style': '#EB4899'
 };
 
 // Block type ΓåÆ CSS class (mirrors mkStyleExt registrations)
 // ΓöÇΓöÇ COMPLETE MAP: every block type that has a style extension ΓöÇΓöÇ
 const BLOCK_CLASS_MAP = {
   // defult_style (blue gradient)
-  start: 'defult_style',
+  start: 'logic_style',
   sim_solar: 'defult_style', sim_pendulum: 'defult_style', sim_particles: 'defult_style',
   sim_dna: 'defult_style', sim_gears: 'defult_style', sim_wave: 'defult_style',
   sim_bouncing: 'defult_style', sim_windmill: 'defult_style', sim_atom: 'defult_style',
@@ -1911,20 +1927,37 @@ const BLOCK_CLASS_MAP = {
 
   // led_style
   port_on: 'led_style', port_off: 'led_style',
-  sen_ultrasonic: 'led_style', sen_temp: 'led_style', custom_if_then: 'led_style',
+  sen_ultrasonic: 'led_style', sen_temp: 'led_style',
 
+  // delay_style
+  ctl_delay: 'delay_style',
+  // llm_style
+  llm_text: 'llm_style',
   // dummy_block
-  ctl_delay: 'dummy_block', do_led_param: 'dummy_block',
-  green_led: 'dummy_block', red_led: 'dummy_block', yellow_led: 'dummy_block',
 
   // block_dc
   lp_while: 'block_dc', lp_break: 'block_dc', lp_continue: 'block_dc', lp_repeat_count: 'block_dc',
-  lp_label: 'block_dc', lp_start: 'block_dc',
+  lp_label: 'block_dc', lp_start: 'block_dc', compare: 'block_dc',
 
   // block-servo
-  do_onoff: 'block-servo', do_dc_motor: 'block-servo', do_dc_motor2: 'block-servo',
-  do_servo: 'block-servo', bt_send: 'block-servo', do_led: 'block-servo',
-  LCD_print: 'block-servo', rgb_display: 'block-servo',
+  do_onoff: 'block-servo', bt_send: 'block-servo',
+
+  // pwm_style
+  bike_model: 'pwm_style', do_dc_motor: 'pwm_style', do_dc_motor2: 'pwm_style',
+  do_servo: 'pwm_style',
+
+  // led_category_style
+  do_led_param: 'led_category_style', do_led: 'led_category_style', red_led: 'led_category_style',
+  yellow_led: 'led_category_style', green_led: 'led_category_style', light_freq: 'led_category_style',
+  rgb_display: 'led_category_style', rgb_led_display: 'led_category_style', rgb_component: 'led_category_style',
+  LCD_print: 'led_category_style',
+
+  // txrx_category_style
+  finger_print_enroll: 'txrx_category_style', finger_print_match: 'txrx_category_style', keypad: 'txrx_category_style',
+  gps: 'txrx_category_style', gsm: 'txrx_category_style', tof: 'txrx_category_style', soli_npk: 'txrx_category_style',
+
+  // spi_category_style
+  rfid: 'spi_category_style', tft: 'spi_category_style',
   din_temp: 'temp_style', flex_sensor: 'temp_style', flexi_force_sensor: 'temp_style',
   humidity: 'temp_style', joystick_move: 'temp_style', shock_sensor: 'temp_style',
   TDS_Water_sensor: 'temp_style', water_sensor: 'temp_style',
@@ -1935,11 +1968,15 @@ const BLOCK_CLASS_MAP = {
   sensor: 'ultra_style', tem_sensor: 'ultra_style', xray_sensor: 'ultra_style',
   rc_sensor: 'ultra_style',
 
+  // logic_style
+  din_if_else: 'logic_style', custom_if_then: 'logic_style', any_input_block: 'logic_style',
+  system_status: 'logic_style', logical_comparison: 'logic_style',
+
   // temp_style
-  ana_temp: 'temp_style', 'Current-sensor': 'temp_style', din_if_else: 'temp_style',
+  ana_temp: 'temp_style', 'Current-sensor': 'temp_style',
   din_ultra: 'temp_style', dust: 'temp_style', ecg: 'temp_style', heart_beat: 'temp_style',
-  'IR-Temp': 'temp_style', ldr: 'temp_style', light_freq: 'temp_style',
-  loop_end: 'temp_style', soil_moisture: 'temp_style', system_status: 'temp_style',
+  'IR-Temp': 'temp_style', ldr: 'temp_style',
+  loop_end: 'temp_style', soil_moisture: 'temp_style',
   tank_motor: 'temp_style', 'temp2-sensor': 'temp_style', tep_ana: 'temp_style',
   'vibration-switch-sensor': 'temp_style', voltage_sensor: 'temp_style', water_motor: 'temp_style',
 
@@ -2009,8 +2046,8 @@ function _injectIntoSvg(svgEl) {
     defs = document.createElementNS(NS, 'defs');
     svgEl.prepend(defs);
   }
-  // Only inject if not already present (check by first gradient id)
-  if (!defs.querySelector('[id="gradDefault"]')) {
+  // Only inject if not already present (check by first shadow id)
+  if (!defs.querySelector('[id="blueShadow"]')) {
     const tmp = document.createElementNS(NS, 'svg');
     tmp.innerHTML = CURIO_GRAD_DEFS;
     Array.from(tmp.childNodes).forEach(n => defs.appendChild(n.cloneNode(true)));
@@ -2083,13 +2120,9 @@ function applyGradientAndShadowToBlock(block) {
   const allPaths = svgRoot.querySelectorAll(':scope > .blocklyPath');
   if (allPaths.length === 0) return;
 
-  // FIRST path: apply gradient/color + shadow
-  if (cls === 'digital_style') {
-    allPaths[0].style.setProperty('fill', '#E57333', 'important');
-  } else {
-    const grad = CLASS_GRAD_MAP[cls] || 'gradDefault';
-    allPaths[0].style.setProperty('fill', 'url(#' + grad + ')', 'important');
-  }
+  // FIRST path: apply solid color + shadow
+  const color = CLASS_COLOR_MAP[cls] || '#2685BF';
+  allPaths[0].style.setProperty('fill', color, 'important');
   if (BLOCK_SHADOW_MAP[block.type]) {
     allPaths[0].style.setProperty('filter', 'url(#' + BLOCK_SHADOW_MAP[block.type] + ')', 'important');
   }
@@ -2417,7 +2450,7 @@ function defineBlocks() {
         , name: "VALUE"
       }],
       nextStatement: null,
-      extensions: ["defult_style"]
+      extensions: ["logic_color"]
     },
     {
       type: "port_on",
@@ -2481,9 +2514,9 @@ function defineBlocks() {
       type: "rfid",
       message0: "RFID",
 
-      style: "control_blocks",
+      colour: "#EB4899",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["spi_category_color"]
     },
     {
       type: "tft",
@@ -2496,32 +2529,32 @@ function defineBlocks() {
       ],
       previousStatement: null,
       nextStatement: null,
-      style: "control_blocks",
-      extensions: ["servo_color"]
+      colour: "#EB4899",
+      extensions: ["spi_category_color"]
     },
     {
       type: "finger_print_enroll",
       message0: "Fingerprint Enroll",
 
-      style: "control_blocks",
+      colour: "#3B82F6",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["txrx_category_color"]
     },
     {
       type: "finger_print_match",
       message0: "Fingerprint Match ",
 
-      style: "control_blocks",
+      colour: "#3B82F6",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["txrx_category_color"]
     },
     {
       type: "soli_npk",
       message0: "Soil Moisture NPK",
 
-      style: "control_blocks",
+      colour: "#3B82F6",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["txrx_category_color"]
     },
     {
       type: "sen_ultrasonic",
@@ -2540,40 +2573,40 @@ function defineBlocks() {
     },
     { type: "sen_temp", message0: "temperature on port %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", previousStatement: null, nextStatement: null, extensions: ["led_style", "led_pin_image_click"] },
     { type: "do_onoff", message0: "digital write pins %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "servo_color"] },
-    { type: "bike_model", message0: "🏍️ Bike Model %1 speed %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 18, height: 18, alt: "View", name: "IMG", class: "hover-animate" }, { type: "field_number", name: "BIKE_SPEED", value: 0, min: 0, max: 10 }, { type: "field_label", text: "/ 10" }], colour: "#0ea5e9", previousStatement: null, nextStatement: null, extensions: ["bike_model_image_click", "servo_color"] },
-    { type: "do_dc_motor", message0: "DC Motor %1 %2 speed %3 %4 %5", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "Config", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "MOTORS", text: "" }, { type: "field_number", name: "SPEED", value: 60, min: 0, max: 100 }, { type: "field_label", text: "%" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["motor_image_click", "servo_color"] },
-    { type: "do_dc_motor2", message0: "DC Motor %1 %2 %3", args0: [{ type: "field_image", name: "IMG", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15 }, { type: "field_label", name: "MOTORS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"], ["turn left", "turn left"], ["turn right", "turn right"]] }], colour: "#FF69B4", previousStatement: null, nextStatement: null, extensions: ["motor_image_click2", "servo_color"] },
-    { type: "do_servo", message0: "servo on %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "SERVO_PORT", text: "" }, { type: "field_number", name: "ANG", value: 45, min: 0, max: 360, precision: 1 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["servo_image_click", "servo_color"] },
+    { type: "bike_model", message0: "🏍️ Bike Model %1 speed %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 18, height: 18, alt: "View", name: "IMG", class: "hover-animate" }, { type: "field_number", name: "BIKE_SPEED", value: 0, min: 0, max: 10 }, { type: "field_label", text: "/ 10" }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["bike_model_image_click", "pwm_color"] },
+    { type: "do_dc_motor", message0: "DC Motor %1 %2 speed %3 %4 %5", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "Config", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "MOTORS", text: "" }, { type: "field_number", name: "SPEED", value: 60, min: 0, max: 100 }, { type: "field_label", text: "%" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"]] }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["motor_image_click", "pwm_color"] },
+    { type: "do_dc_motor2", message0: "DC Motor %1 %2 %3", args0: [{ type: "field_image", name: "IMG", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15 }, { type: "field_label", name: "MOTORS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"], ["turn left", "turn left"], ["turn right", "turn right"]] }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["motor_image_click2", "pwm_color"] },
+    { type: "do_servo", message0: "servo on %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "SERVO_PORT", text: "" }, { type: "field_number", name: "ANG", value: 45, min: 0, max: 360, precision: 1 }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["servo_image_click", "pwm_color"] },
     { type: "bt_send", message0: "Bluetooth send %1", args0: [{ type: "input_value", name: "TEXT" }], previousStatement: null, nextStatement: null, style: "control_blocks", extensions: ["servo_color"] },
-    { type: "do_led", message0: "LED %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "servo_color"] },
-    { type: "ctl_delay", message0: "Delay%1 ms", args0: [{ type: "field_number", name: "MS", value: 500, min: 0, max: 600000 }], style: "led_blocks", previousStatement: null, nextStatement: null, extensions: ["dummy_style"] },
+    { type: "do_led", message0: "LED %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "leds_category_color"] },
+    { type: "ctl_delay", message0: "Delay%1 ms", args0: [{ type: "field_number", name: "MS", value: 500, min: 0, max: 600000 }], previousStatement: null, nextStatement: null, extensions: ["delay_color"] },
     { type: "lp_while", message0: "while %1", args0: [{ type: "input_value", name: "COND", check: "Boolean" }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_break", message0: "break", previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_continue", message0: "continue", previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_start", message0: "@@start", previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_repeat_count", message0: "repeat %1 %2 times", args0: [{ type: "field_number", name: "PIN" }, { type: "field_number", name: "COUNT", value: 4, min: 0, max: 100000 }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_label", message0: "Print %1", args0: [{ type: "input_value", name: "NAME" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
-    { type: "din_if_else", message0: "if %1", args0: [{ type: "input_value", name: "COND", check: "Boolean" }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], message2: "else %1", args2: [{ type: "input_statement", name: "ELSE" }], style: "control_blocks", previousStatement: null, nextStatement: null, extensions: ["temp_style"] },
+    { type: "din_if_else", message0: "if %1", args0: [{ type: "input_value", name: "COND", check: "Boolean" }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], message2: "else %1", args2: [{ type: "input_statement", name: "ELSE" }], previousStatement: null, nextStatement: null, extensions: ["logic_color"] },
     { type: "din_sound", message0: "SOUND CELL %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_tilt", message0: "TILT %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_door", message0: "MAGNETIC SWITCH %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_button", message0: "BUTTON %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_motion", message0: "MOTION SENSOR %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
-    { type: "light_freq", message0: "LIGHT Frequency %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "port_image_click"] },
+    { type: "light_freq", message0: "LIGHT Frequency %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], colour: "#22C45D", output: "Boolean", extensions: ["leds_category_color", "port_image_click"] },
     { type: "din_proximity", message0: "PROXIMITY %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_ir", message0: "IR %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_flame", message0: "FLAME %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "ana_flame", message0: "FLAME %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "port_image_click"] },
     { type: "load_cell", message0: "Load Cell %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
-    { type: "do_led_param", message0: "LED write %1 %2 value %3 time %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL" }, { type: "field_number", name: "VAL2" }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "dummy_style"] },
+    { type: "do_led_param", message0: "LED write %1 %2 value %3 time %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL" }, { type: "field_number", name: "VAL2" }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "leds_category_color"] },
     { type: "sensor", message0: "ultra sonic %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "ultra_style"] },
     { type: "tem_sensor", message0: "tem sonic %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "ultra_style"] },
     { type: "xray_sensor", message0: "xray sonic %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "ultra_style"] },
     { type: "rc_sensor", message0: "rc sensor %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "ultra_style"] },
-    { type: "logical_comparison", message0: "%1 %2 %3", args0: [{ type: "input_value", name: "VALUE1" }, { type: "field_dropdown", name: "OPERATOR", options: [["<", "<"], [">", ">"], [" == ", "=="], [" >= ", ">="], [" <= ", "<="], [" != ", "!="]] }, { type: "input_value", name: "VALUE2" }], colour: "#4C97FF", output: "Boolean", inputsInline: true },
-    { type: "red_led", message0: "Red LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "dummy_style"] },
-    { type: "yellow_led", message0: "YELLOW LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "dummy_style"] },
-    { type: "green_led", message0: "GREEN LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "dummy_style"] },
+    { type: "logical_comparison", message0: "%1 %2 %3", args0: [{ type: "input_value", name: "VALUE1" }, { type: "field_dropdown", name: "OPERATOR", options: [["<", "<"], [">", ">"], [" == ", "=="], [" >= ", ">="], [" <= ", "<="], [" != ", "!="]] }, { type: "input_value", name: "VALUE2" }], output: "Boolean", inputsInline: true, extensions: ["logic_color"] },
+    { type: "red_led", message0: "Red LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "leds_category_color"] },
+    { type: "yellow_led", message0: "YELLOW LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "leds_category_color"] },
+    { type: "green_led", message0: "GREEN LED %1 %2 %3 %4", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1", value: 1, min: 0, max: 100, precision: 1 }, { type: "field_number", name: "VAL2", value: 1, min: 0, max: 100, precision: 1 }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["led_pin_image_click", "leds_category_color"] },
     { type: "water-turbidity-sensor", message0: "turbidity %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], output: "Boolean", extensions: ["led_pin_image_click", "temp_style"] },
     { type: "steper", message0: "stepper Motor %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "SPEED", value: 60, min: 0, max: 100 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "digital_style"] },
     { type: "waterpump", message0: "Water Pump %1 %2 Angle %3 °", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "ANGLE", value: 60, min: 0 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "digital_style"] },
@@ -2591,10 +2624,10 @@ function defineBlocks() {
       { type: "field_number", name: "freq", value: 0 },
       { type: "field_number", name: "Delay1", value: 255 },
       { type: "field_number", name: "DELAY2", value: 0 }],
-      colour: "#81d4ed",
+      colour: "#22C45D",
       previousStatement: null,
       nextStatement: null,
-      extensions: ["port_image_click", "servo_color"]
+      extensions: ["port_image_click", "leds_category_color"]
     },
     { type: "shock_sensor", message0: "Shock Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "flex-sensor", message0: "flex %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], output: "Boolean", extensions: ["led_pin_image_click", "temp_style"] },
@@ -2627,11 +2660,11 @@ function defineBlocks() {
     { type: "Air_quality_sensor", message0: "Air-quality-sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "flexi_force_sensor", message0: "Flexi Force Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "TDS_Water_sensor", message0: "TDS Water Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
-    { type: "LCD_print", message0: "LCD %1", args0: [{ type: "input_value", name: "TEXT" }], previousStatement: null, nextStatement: null, extensions: ["servo_color"] },
+    { type: "LCD_print", message0: "LCD %1", args0: [{ type: "input_value", name: "TEXT" }], previousStatement: null, nextStatement: null, colour: "#22C45D", extensions: ["leds_category_color"] },
     { type: "din_temp", message0: "temperature sensor pin %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "water_sensor", message0: "Water Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
-    { type: "any_input_block", message0: "%1", args0: [{ type: "field_input", name: "ANY", text: "1" }], output: null, colour: 230 },
-    { type: "custom_if_then", message0: "if %1 then %2", args0: [{ type: "input_value", name: "CONDITION", check: "Boolean" }, { type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, colour: 69, extensions: ["led_style"] },
+    { type: "any_input_block", message0: "%1", args0: [{ type: "field_input", name: "ANY", text: "1" }], output: null, extensions: ["logic_color"] },
+    { type: "custom_if_then", message0: "if %1 then %2", args0: [{ type: "input_value", name: "CONDITION", check: "Boolean" }, { type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, extensions: ["logic_color"] },
     { type: "tep_ana", message0: "Temputure ana Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "heart_beat", message0: "heart beat %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "ldr", message0: "LDR %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
@@ -2645,7 +2678,7 @@ function defineBlocks() {
     { type: "ana_temp", message0: "Analog Temputure %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "led_pin_image_click"] },
     { type: "magnetic_sensor", message0: "Magnetic sensor pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "colour_sen", message0: "Colour", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
-    { type: "system_status", message0: "System Status Running", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
+    { type: "system_status", message0: "System Status Running", output: "Boolean", extensions: ["logic_color"] },
     { type: "accelerometer_sensor", message0: "Accelerometer sensor pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "rtc_sensor", message0: "Rtc sensor pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "LCD", message0: "LCD pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
@@ -2751,7 +2784,7 @@ function defineBlocks() {
     { type: "ambient-sen", message0: "Ambient sensor pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "din_ultra", message0: "Ultra Sonic sensor pin %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["led_pin_image_click", "temp_style"] },
     { type: "voltage_sensor", message0: "Voltage Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["led_pin_image_click", "temp_style"] },
-    { type: "rgb_display", message0: "display %1 %2 %3 %4 %5", args0: [{ type: "field_colour", name: "RED", colour: "#FF0000" }, { type: "field_colour", name: "ORANGE", colour: "#FFA500" }, { type: "field_colour", name: "YELLOW", colour: "#FFFF00" }, { type: "field_colour", name: "GREEN", colour: "#008000" }, { type: "field_colour", name: "CYAN", colour: "#00FFFF" }], colour: 160, previousStatement: null, nextStatement: null, extensions: ["servo_color"] },
+    { type: "rgb_display", message0: "display %1 %2 %3 %4 %5", args0: [{ type: "field_colour", name: "RED", colour: "#FF0000" }, { type: "field_colour", name: "ORANGE", colour: "#FFA500" }, { type: "field_colour", name: "YELLOW", colour: "#FFFF00" }, { type: "field_colour", name: "GREEN", colour: "#008000" }, { type: "field_colour", name: "CYAN", colour: "#00FFFF" }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["leds_category_color"] },
     {
       type: "rgb_led_display",
       message0: "%1 LED %2 displays %3 for %4 secs",
@@ -2763,8 +2796,8 @@ function defineBlocks() {
       { type: "input_value", name: "TIME", check: "Number" }],
       previousStatement: null,
       nextStatement: null,
-      colour: "#9F2CBF",
-      extensions: ["temp_style"]
+      colour: "#22C45D",
+      extensions: ["leds_category_color"]
     },
     {
       type: "din_ultra_range",
@@ -2814,18 +2847,18 @@ function defineBlocks() {
           name: "PORTS",
           text: ""
         }],
-      colour: "#C0603E",
+      colour: "#3B82F6",
       previousStatement: null,
       nextStatement: null,
-      extensions: ["temp_style", "key_pin_image_click"]
+      extensions: ["txrx_category_color", "key_pin_image_click"]
     },
     {
       type: "gps",
       message0: "GPS ",
 
-      style: "control_blocks",
+      colour: "#3B82F6",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["txrx_category_color"]
     },
     {
       type: "gsm",
@@ -2839,18 +2872,18 @@ function defineBlocks() {
           type: "field_input",
           name: "VAL2",
         },],
-      colour: "#81d4ed",
+      colour: "#3B82F6",
       previousStatement: null,
       nextStatement: null,
-      extensions: ["port_image_click", "servo_color"]
+      extensions: ["port_image_click", "txrx_category_color"]
     },
     {
       type: "tof",
       message0: "ToF",
 
-      style: "control_blocks",
+      colour: "#3B82F6",
       output: "Boolean",
-      extensions: ["temp_style"]
+      extensions: ["txrx_category_color"]
     },
     {
       type: "compare",
@@ -2869,17 +2902,28 @@ function defineBlocks() {
     },
     {
       type: "llm_text",
-      message0: "LLM TTS %1",
+      message0: "LLM TTS %1 %2 %3",
       args0: [
+        {
+          type: "input_value",
+          name: "NAME2",
+        },
+        {
+          type: "field_dropdown",
+          name: "STATE",
+          options: [["photo", "photo"],
+          ["voice", "voice"],
+          ["text", "text"]
+          ]
+        },
         {
           type: "field_input",
           name: "VAL1",
         },
       ],
-      colour: "#81d4ed",
       previousStatement: null,
       nextStatement: null,
-      extensions: ["servo_color"]
+      extensions: ["llm_color"]
     },
     // ── Original AI Blocks (dropdown-based) ─────────────────────────
     {
@@ -3142,8 +3186,15 @@ function defineBlocks() {
   }
   mkStyleExt('defult_style', 'defult_style');
   mkStyleExt('servo_color', 'block-servo');
+  mkStyleExt('pwm_color', 'pwm_style');
+  mkStyleExt('leds_category_color', 'led_category_style');
+  mkStyleExt('txrx_category_color', 'txrx_category_style');
+  mkStyleExt('spi_category_color', 'spi_category_style');
   mkStyleExt('led_style', 'led_style');
   mkStyleExt('dummy_style', 'dummy_block');
+  mkStyleExt('delay_color', 'delay_style');
+  mkStyleExt('logic_color', 'logic_style');
+  mkStyleExt('llm_color', 'llm_style');
   mkStyleExt('temp_style', 'temp_style');
   mkStyleExt('i2c_style', 'i2c_style');
   mkStyleExt('digital_style', 'digital_style');
@@ -3659,8 +3710,9 @@ function defineGenerators() {
   };
   reg['llm_text'] = function (block) {
     const val1 = block.getFieldValue('VAL1');
-    // ALWAYS return a STRING
-    return `await async_llm_text("${val1}")\n`;
+    var name2 = py.valueToCode(block, 'NAME2', py.ORDER_NONE);
+    const angle = block.getFieldValue('STATE') || 0;
+    return `await async_llm_text(${name2},"${angle}","${val1}")\n`;
   };
   reg['ai_block'] = b => {
     const State = b.getFieldValue('STATE') || 0;
@@ -4772,6 +4824,12 @@ async function start() {
 
   const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
     base: Blockly.Themes.Classic,
+    blockStyles: {
+      'loop_blocks': { colourPrimary: '#6265F0', colourSecondary: '#4A4DC8', colourTertiary: '#4A4DC8' },
+      'logic_blocks': { colourPrimary: '#04B6D4', colourSecondary: '#0290A8', colourTertiary: '#0290A8' },
+      'variable_blocks': { colourPrimary: '#0FB881', colourSecondary: '#0A8A5F', colourTertiary: '#0A8A5F' },
+      'variable_dynamic_blocks': { colourPrimary: '#0FB881', colourSecondary: '#0A8A5F', colourTertiary: '#0A8A5F' }
+    },
     componentStyles: {
       workspaceBackgroundColour: '#ffffff',
       toolboxBackgroundColour: '#FFFFFF',
@@ -4805,7 +4863,7 @@ async function start() {
       "type": "list_create_empty",
       "message0": "create empty list",
       "output": "Array",
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Creates an empty list []"
     },
     // 2) Create list with items [ , , ]
@@ -4815,7 +4873,7 @@ async function start() {
       "args0": [{ "type": "input_value", "name": "ITEM0" }],
       "output": "Array",
       "inputsInline": true,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "mutator": "list_create_with_mutator",
       "tooltip": "Create a list with items"
     },
@@ -4830,7 +4888,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Append an item to a list"
     },
     // 4) Get item from list by index
@@ -4843,7 +4901,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Get item at index (starts from 0)"
     },
     // 5) Set item in list by index
@@ -4858,7 +4916,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Replace item at index"
     },
     // 6) Delete item from list
@@ -4872,7 +4930,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Delete item at index"
     },
     // 7) Delete all of list
@@ -4885,7 +4943,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Delete all items from the list"
     },
     // 8) Insert item at index
@@ -4900,7 +4958,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Insert item at a specific index"
     },
     // 9) Length of list
@@ -4912,7 +4970,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Number",
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Returns the number of items in the list"
     },
     // 10) List is empty?
@@ -4924,7 +4982,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Boolean",
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Returns True if the list is empty"
     },
     // 11) List contains item?
@@ -4937,7 +4995,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Boolean",
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Returns True if item is in the list"
     },
     // 12) Item # of thing in list
@@ -4950,7 +5008,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Number",
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Returns the index of the first occurrence"
     },
     // 13) Show list (print)
@@ -4963,7 +5021,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#FF6680",
+      "colour": "#0FB881",
       "tooltip": "Print the list"
     }
   ]);
@@ -5304,9 +5362,9 @@ async function start() {
       'Delay': '#FB913B', 'Logic': '#04B6D4', 'Maths': '#84CB17', 'A.I. Vision': '#EE4444',
       'AI blocks': '#E9B308', 'Variable': '#0FB881', 'Function': '#F4405D',
       'List': '#A68AF9', 'Display-3.js': '#A68AF9', 'Display-lotte': '#F4405D', 'default block': '#84CB17',
-      'Search': '#526271', 'A.I. Voice': '#7c3aed', 'A.I. Pose': '#0ea5e9'
+      'Search': '#526271', 'A.I. Voice': '#7c3aed', 'A.I. Pose': '#0ea5e9', 'Llm': '#0DA5E8'
     };
-    var ICONS = { 'Digital': 'assets/img/icon_001.svg', 'Analog': 'assets/img/icon_002.svg', 'I2c': 'assets/img/icon_003.svg', 'PWM': 'assets/img/icon_004.svg', 'LEDs': 'assets/img/icon_005.svg', 'Tx-Rx': 'assets/img/icon_006.svg', 'SPI': 'assets/img/icon_007.svg', 'Loop': 'assets/img/icon_008.svg', 'Delay': 'assets/img/icon_009.svg', 'Logic': 'assets/img/icon_010.svg', 'Maths': 'assets/img/icon_011.svg', 'A.I. Vision': 'assets/img/icon_012.svg', 'AI blocks': 'assets/img/icon_012.svg', 'Variable': 'assets/img/icon_013.svg', 'Display-3.js': 'assets/img/icon_014.svg', 'List': 'assets/img/icon_015.svg', 'Function': 'assets/img/icon_016.svg', 'Display-lotte': 'assets/img/icon_014.svg', 'default block': 'assets/img/icon_017.svg' };
+    var ICONS = { 'Digital': 'assets/img/icon_001.svg', 'Analog': 'assets/img/icon_002.svg', 'I2c': 'assets/img/icon_003.svg', 'PWM': 'assets/img/icon_004.svg', 'LEDs': 'assets/img/icon_005.svg', 'Tx-Rx': 'assets/img/icon_006.svg', 'SPI': 'assets/img/icon_007.svg', 'Loop': 'assets/img/icon_008.svg', 'Delay': 'assets/img/icon_009.svg', 'Logic': 'assets/img/icon_010.svg', 'Maths': 'assets/img/icon_011.svg', 'A.I. Vision': 'assets/img/icon_012.svg', 'AI blocks': 'assets/img/icon_012.svg', 'Variable': 'assets/img/icon_013.svg', 'Display-3.js': 'assets/img/icon_014.svg', 'List': 'assets/img/icon_015.svg', 'Function': 'assets/img/icon_016.svg', 'Display-lotte': 'assets/img/icon_014.svg', 'default block': 'assets/img/icon_017.svg', 'Llm': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2Ljg3NSAxMS44NzVDMTcuOTA4OCAxMS44NzUgMTguNzUgMTEuMDMzNyAxOC43NSAxMEMxOC43NSA4Ljk2NjI1IDE3LjkwODggOC4xMjUgMTYuODc1IDguMTI1QzE2LjQ4ODUgOC4xMjYxNSAxNi4xMTE4IDguMjQ2OTIgMTUuNzk2NyA4LjQ3MDc0QzE1LjQ4MTUgOC42OTQ1NSAxNS4yNDM0IDkuMDEwNDMgMTUuMTE1IDkuMzc1SDExLjUwODdMMTYuMDcxMyA0LjgxMjVDMTYuMzE2MyA0LjkyOTM3IDE2LjU4NjMgNSAxNi44NzUgNUMxNy45MDg4IDUgMTguNzUgNC4xNTg3NSAxOC43NSAzLjEyNUMxOC43NSAyLjA5MTI1IDE3LjkwODggMS4yNSAxNi44NzUgMS4yNUMxNS44NDEzIDEuMjUgMTUgMi4wOTEyNSAxNSAzLjEyNUMxNSAzLjQxMzc1IDE1LjA3MTIgMy42ODM3NSAxNS4xODc1IDMuOTI4MTJMMTAgOS4xMTYyNVY1QzEwIDQuMzExMjUgMTAuNTYwNiAzLjc1IDExLjI1IDMuNzVIMTIuNVYyLjVIMTEuMjVDMTAuNSAyLjUgOS44MzM3NSAyLjgzOTM4IDkuMzc1IDMuMzYzNzVDOS4xNDI1MiAzLjA5Mzk0IDguODU0ODEgMi44NzcyIDguNTMxMzMgMi43MjgxOEM4LjIwNzg2IDIuNTc5MTcgNy44NTYxNSAyLjUwMTM1IDcuNSAyLjVINi44NzVDMy43NzM3NSAyLjUgMS4yNSA1LjAyMzEzIDEuMjUgOC4xMjVWMTEuODc1QzEuMjUgMTQuOTc2OSAzLjc3Mzc1IDE3LjUgNi44NzUgMTcuNUg3LjVDOC4yNSAxNy41IDguOTE2MjUgMTcuMTYxMyA5LjM3NSAxNi42MzYyQzkuODMzNzUgMTcuMTYxMyAxMC41IDE3LjUgMTEuMjUgMTcuNUgxMi41VjE2LjI1SDExLjI1QzEwLjU2MDYgMTYuMjUgMTAgMTUuNjg5NCAxMCAxNVYxMC44ODM3TDE1LjE4NzUgMTYuMDcxOUMxNS4wNzA2IDE2LjMxNjIgMTUgMTYuNTg2MyAxNSAxNi44NzVDMTUgMTcuOTA5NCAxNS44NDEzIDE4Ljc1IDE2Ljg3NSAxOC43NUMxNy45MDg4IDE4Ljc1IDE4Ljc1IDE3LjkwOTQgMTguNzUgMTYuODc1QzE4Ljc1IDE1Ljg0MDYgMTcuOTA4OCAxNSAxNi44NzUgMTVDMTYuNTk2NSAxNS4wMDE1IDE2LjMyMiAxNS4wNjU4IDE2LjA3MTkgMTUuMTg4MUwxMS41MDg3IDEwLjYyNTZIMTUuMTE1QzE1LjI0MzUgMTAuOTkwMSAxNS40ODE3IDExLjMwNTggMTUuNzk2OCAxMS41Mjk1QzE2LjExMTkgMTEuNzUzMiAxNi40ODg2IDExLjg3MzkgMTYuODc1IDExLjg3NVpNMTYuODc1IDkuMzc1QzE3LjA0MDggOS4zNzUgMTcuMTk5NyA5LjQ0MDg1IDE3LjMxNjkgOS41NTgwNkMxNy40MzQyIDkuNjc1MjcgMTcuNSA5LjgzNDI0IDE3LjUgMTBDMTcuNSAxMC4xNjU4IDE3LjQzNDIgMTAuMzI0NyAxNy4zMTY5IDEwLjQ0MTlDMTcuMTk5NyAxMC41NTkyIDE3LjA0MDggMTAuNjI1IDE2Ljg3NSAxMC42MjVDMTYuNzA5MiAxMC42MjUgMTYuNTUwMyAxMC41NTkyIDE2LjQzMzEgMTAuNDQxOUMxNi4zMTU4IDEwLjMyNDcgMTYuMjUgMTAuMTY1OCAxNi4yNSAxMEMxNi4yNSA5LjgzNDI0IDE2LjMxNTggOS42NzUyNyAxNi40MzMxIDkuNTU4MDZDMTYuNTUwMyA5LjQ0MDg1IDE2LjcwOTIgOS4zNzUgMTYuODc1IDkuMzc1Wk0xNi44NzUgMi41QzE3LjAzNTkgMi41MDcyIDE3LjE4NzkgMi41NzYxOSAxNy4yOTkyIDIuNjkyNjFDMTcuNDEwNSAyLjgwOTA0IDE3LjQ3MjcgMi45NjM5MSAxNy40NzI3IDMuMTI1QzE3LjQ3MjcgMy4yODYwOSAxNy40MTA1IDMuNDQwOTYgMTcuMjk5MiAzLjU1NzM5QzE3LjE4NzkgMy42NzM4MSAxNy4wMzU5IDMuNzQyOCAxNi44NzUgMy43NUMxNi43MDkyIDMuNzUgMTYuNTUwMyAzLjY4NDE1IDE2LjQzMzEgMy41NjY5NEMxNi4zMTU4IDMuNDQ5NzMgMTYuMjUgMy4yOTA3NiAxNi4yNSAzLjEyNUMxNi4yNSAyLjk1OTI0IDE2LjMxNTggMi44MDAyNyAxNi40MzMxIDIuNjgzMDZDMTYuNTUwMyAyLjU2NTg1IDE2LjcwOTIgMi41IDE2Ljg3NSAyLjVaTTguNzUgNy41SDcuNVY4Ljc1SDguNzVWMTEuMjVINy41QzYuNDY2MjUgMTEuMjUgNS42MjUgMTIuMDkxMyA1LjYyNSAxMy4xMjVWMTQuMzc1SDYuODc1VjEzLjEyNUM2Ljg3NSAxMi45NTkyIDYuOTQwODUgMTIuODAwMyA3LjA1ODA2IDEyLjY4MzFDNy4xNzUyNyAxMi41NjU4IDcuMzM0MjQgMTIuNSA3LjUgMTIuNUg4Ljc1VjE1QzguNzUgMTUuNjg5NCA4LjE4OTM3IDE2LjI1IDcuNSAxNi4yNUg2Ljg3NUM0LjY3NSAxNi4yNSAyLjg1NSAxNC42MTY5IDIuNTUgMTIuNUgzLjc1VjExLjI1SDIuNVY4Ljc1SDQuMzc1QzUuNDA4NzUgOC43NSA2LjI1IDcuOTA4NzUgNi4yNSA2Ljg3NVY1LjYyNUg1VjYuODc1QzUgNy4wNDA3NiA0LjkzNDE1IDcuMTk5NzMgNC44MTY5NCA3LjMxNjk0QzQuNjk5NzMgNy40MzQxNSA0LjU0MDc2IDcuNSA0LjM3NSA3LjVIMi41NUMyLjg1NSA1LjM4MzEyIDQuNjc1IDMuNzUgNi44NzUgMy43NUg3LjVDOC4xODkzNyAzLjc1IDguNzUgNC4zMTEyNSA4Ljc1IDVWNy41Wk0xNy41IDE2Ljg3NUMxNy40OTI4IDE3LjAzNTkgMTcuNDIzOCAxNy4xODc5IDE3LjMwNzQgMTcuMjk5MkMxNy4xOTEgMTcuNDEwNSAxNy4wMzYxIDE3LjQ3MjcgMTYuODc1IDE3LjQ3MjdDMTYuNzEzOSAxNy40NzI3IDE2LjU1OSAxNy40MTA1IDE2LjQ0MjYgMTcuMjk5MkMxNi4zMjYyIDE3LjE4NzkgMTYuMjU3MiAxNy4wMzU5IDE2LjI1IDE2Ljg3NUMxNi4yNSAxNi41MzA2IDE2LjUzMDYgMTYuMjUgMTYuODc1IDE2LjI1QzE3LjIxOTQgMTYuMjUgMTcuNSAxNi41MzA2IDE3LjUgMTYuODc1WiIgZmlsbD0iIzBEQTVFOCIvPgo8L3N2Zz4K' };
     window.SMALL_ICONS = {
       'Digital': 'assets/img/icon_018.svg',
       'Analog': 'assets/img/icon_019.svg',
@@ -5327,7 +5385,8 @@ async function start() {
       'Display-lotte': 'assets/img/icon_033.svg',
       'default block': 'assets/img/icon_034.svg',
       'A.I. Vision': 'assets/img/icon_029.svg',
-      'A.I. Pose': 'assets/img/icon_033.svg'
+      'A.I. Pose': 'assets/img/icon_033.svg',
+      'Llm': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzciIGhlaWdodD0iMzQiIHZpZXdCb3g9IjAgMCAzNyAzNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMC41IiB5PSIwLjUiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzMyIgcng9IjcuNSIgZmlsbD0iI0Q4RUZGOSIvPgo8cmVjdCB4PSIwLjUiIHk9IjAuNSIgd2lkdGg9IjM2IiBoZWlnaHQ9IjMzIiByeD0iNy41IiBzdHJva2U9IiNENUQ1RDUiLz4KPHBhdGggZD0iTTI1LjM3NSAxOC44NzVDMjYuNDA4OCAxOC44NzUgMjcuMjUgMTguMDMzNyAyNy4yNSAxN0MyNy4yNSAxNS45NjYyIDI2LjQwODggMTUuMTI1IDI1LjM3NSAxNS4xMjVDMjQuOTg4NSAxNS4xMjYxIDI0LjYxMTggMTUuMjQ2OSAyNC4yOTY3IDE1LjQ3MDdDMjMuOTgxNSAxNS42OTQ2IDIzLjc0MzQgMTYuMDEwNCAyMy42MTUgMTYuMzc1SDIwLjAwODdMMjQuNTcxMyAxMS44MTI1QzI0LjgxNjMgMTEuOTI5NCAyNS4wODYzIDEyIDI1LjM3NSAxMkMyNi40MDg4IDEyIDI3LjI1IDExLjE1ODggMjcuMjUgMTAuMTI1QzI3LjI1IDkuMDkxMjUgMjYuNDA4OCA4LjI1IDI1LjM3NSA4LjI1QzI0LjM0MTMgOC4yNSAyMy41IDkuMDkxMjUgMjMuNSAxMC4xMjVDMjMuNSAxMC40MTM3IDIzLjU3MTIgMTAuNjgzNyAyMy42ODc1IDEwLjkyODFMMTguNSAxNi4xMTYzVjEyQzE4LjUgMTEuMzExMiAxOS4wNjA2IDEwLjc1IDE5Ljc1IDEwLjc1SDIxVjkuNUgxOS43NUMxOSA5LjUgMTguMzMzNyA5LjgzOTM4IDE3Ljg3NSAxMC4zNjM3QzE3LjY0MjUgMTAuMDkzOSAxNy4zNTQ4IDkuODc3MiAxNy4wMzEzIDkuNzI4MThDMTYuNzA3OSA5LjU3OTE3IDE2LjM1NjEgOS41MDEzNSAxNiA5LjVIMTUuMzc1QzEyLjI3MzggOS41IDkuNzUgMTIuMDIzMSA5Ljc1IDE1LjEyNVYxOC44NzVDOS43NSAyMS45NzY5IDEyLjI3MzggMjQuNSAxNS4zNzUgMjQuNUgxNkMxNi43NSAyNC41IDE3LjQxNjIgMjQuMTYxMyAxNy44NzUgMjMuNjM2MkMxOC4zMzM3IDI0LjE2MTMgMTkgMjQuNSAxOS43NSAyNC41SDIxVjIzLjI1SDE5Ljc1QzE5LjA2MDYgMjMuMjUgMTguNSAyMi42ODk0IDE4LjUgMjJWMTcuODgzN0wyMy42ODc1IDIzLjA3MTlDMjMuNTcwNiAyMy4zMTYyIDIzLjUgMjMuNTg2MyAyMy41IDIzLjg3NUMyMy41IDI0LjkwOTQgMjQuMzQxMyAyNS43NSAyNS4zNzUgMjUuNzVDMjYuNDA4OCAyNS43NSAyNy4yNSAyNC45MDk0IDI3LjI1IDIzLjg3NUMyNy4yNSAyMi44NDA2IDI2LjQwODggMjIgMjUuMzc1IDIyQzI1LjA5NjUgMjIuMDAxNSAyNC44MjIgMjIuMDY1OCAyNC41NzE5IDIyLjE4ODFMMjAuMDA4NyAxNy42MjU2SDIzLjYxNUMyMy43NDM1IDE3Ljk5MDEgMjMuOTgxNyAxOC4zMDU4IDI0LjI5NjggMTguNTI5NUMyNC42MTE5IDE4Ljc1MzIgMjQuOTg4NiAxOC44NzM5IDI1LjM3NSAxOC44NzVaTTI1LjM3NSAxNi4zNzVDMjUuNTQwOCAxNi4zNzUgMjUuNjk5NyAxNi40NDA4IDI1LjgxNjkgMTYuNTU4MUMyNS45MzQyIDE2LjY3NTMgMjYgMTYuODM0MiAyNiAxN0MyNiAxNy4xNjU4IDI1LjkzNDIgMTcuMzI0NyAyNS44MTY5IDE3LjQ0MTlDMjUuNjk5NyAxNy41NTkyIDI1LjU0MDggMTcuNjI1IDI1LjM3NSAxNy42MjVDMjUuMjA5MiAxNy42MjUgMjUuMDUwMyAxNy41NTkyIDI0LjkzMzEgMTcuNDQxOUMyNC44MTU4IDE3LjMyNDcgMjQuNzUgMTcuMTY1OCAyNC43NSAxN0MyNC43NSAxNi44MzQyIDI0LjgxNTggMTYuNjc1MyAyNC45MzMxIDE2LjU1ODFDMjUuMDUwMyAxNi40NDA4IDI1LjIwOTIgMTYuMzc1IDI1LjM3NSAxNi4zNzVaTTI1LjM3NSA5LjVDMjUuNTM1OSA5LjUwNzIgMjUuNjg3OSA5LjU3NjE5IDI1Ljc5OTIgOS42OTI2MUMyNS45MTA1IDkuODA5MDQgMjUuOTcyNyA5Ljk2MzkxIDI1Ljk3MjcgMTAuMTI1QzI1Ljk3MjcgMTAuMjg2MSAyNS45MTA1IDEwLjQ0MSAyNS43OTkyIDEwLjU1NzRDMjUuNjg3OSAxMC42NzM4IDI1LjUzNTkgMTAuNzQyOCAyNS4zNzUgMTAuNzVDMjUuMjA5MiAxMC43NSAyNS4wNTAzIDEwLjY4NDIgMjQuOTMzMSAxMC41NjY5QzI0LjgxNTggMTAuNDQ5NyAyNC43NSAxMC4yOTA4IDI0Ljc1IDEwLjEyNUMyNC43NSA5Ljk1OTI0IDI0LjgxNTggOS44MDAyNyAyNC45MzMxIDkuNjgzMDZDMjUuMDUwMyA5LjU2NTg1IDI1LjIwOTIgOS41IDI1LjM3NSA5LjVaTTE3LjI1IDE0LjVIMTZWMTUuNzVIMTcuMjVWMTguMjVIMTZDMTQuOTY2MiAxOC4yNSAxNC4xMjUgMTkuMDkxMyAxNC4xMjUgMjAuMTI1VjIxLjM3NUgxNS4zNzVWMjAuMTI1QzE1LjM3NSAxOS45NTkyIDE1LjQ0MDggMTkuODAwMyAxNS41NTgxIDE5LjY4MzFDMTUuNjc1MyAxOS41NjU4IDE1LjgzNDIgMTkuNSAxNiAxOS41SDE3LjI1VjIyQzE3LjI1IDIyLjY4OTQgMTYuNjg5NCAyMy4yNSAxNiAyMy4yNUgxNS4zNzVDMTMuMTc1IDIzLjI1IDExLjM1NSAyMS42MTY5IDExLjA1IDE5LjVIMTIuMjVWMTguMjVIMTFWMTUuNzVIMTIuODc1QzEzLjkwODggMTUuNzUgMTQuNzUgMTQuOTA4OCAxNC43NSAxMy44NzVWMTIuNjI1SDEzLjVWMTMuODc1QzEzLjUgMTQuMDQwOCAxMy40MzQyIDE0LjE5OTcgMTMuMzE2OSAxNC4zMTY5QzEzLjE5OTcgMTQuNDM0MiAxMy4wNDA4IDE0LjUgMTIuODc1IDE0LjVIMTEuMDVDMTEuMzU1IDEyLjM4MzEgMTMuMTc1IDEwLjc1IDE1LjM3NSAxMC43NUgxNkMxNi42ODk0IDEwLjc1IDE3LjI1IDExLjMxMTIgMTcuMjUgMTJWMTQuNVpNMjYgMjMuODc1QzI1Ljk5MjggMjQuMDM1OSAyNS45MjM4IDI0LjE4NzkgMjUuODA3NCAyNC4yOTkyQzI1LjY5MSAyNC40MTA1IDI1LjUzNjEgMjQuNDcyNyAyNS4zNzUgMjQuNDcyN0MyNS4yMTM5IDI0LjQ3MjcgMjUuMDU5IDI0LjQxMDUgMjQuOTQyNiAyNC4yOTkyQzI0LjgyNjIgMjQuMTg3OSAyNC43NTcyIDI0LjAzNTkgMjQuNzUgMjMuODc1QzI0Ljc1IDIzLjUzMDYgMjUuMDMwNiAyMy4yNSAyNS4zNzUgMjMuMjVDMjUuNzE5NCAyMy4yNSAyNiAyMy41MzA2IDI2IDIzLjg3NVoiIGZpbGw9IiMwREE1RTgiLz4KPC9zdmc+Cg=='
     };
     ICONS['Search'] = 'assets/img/icon_035.svg';
     ICONS['A.I. Voice'] = 'assets/img/icon_036.svg';

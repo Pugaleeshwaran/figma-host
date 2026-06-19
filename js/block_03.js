@@ -1,6 +1,6 @@
     (function applyFlyoutPatch() {
       var poll = setInterval(function () {
-        if (workspace != null && workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getFlyout()) {
+        if (typeof workspace !== 'undefined' && workspace != null && workspace.getToolbox && workspace.getToolbox() && workspace.getToolbox().getFlyout()) {
           clearInterval(poll);
 
           const flyout = workspace.getToolbox().getFlyout();
