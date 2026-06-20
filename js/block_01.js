@@ -264,22 +264,6 @@
           ]
         },
 
-        // ── DISPLAY-LOTTIE ───────────────────────────────────────────────
-        {
-          kind: 'category', name: 'Display-lotte', colour: '#D8EFF9', id: 'cat_animations', contents: [
-            { kind: 'block', type: 'lottie_anim' },
-            { kind: 'block', type: 'lottie_rocket' },
-            { kind: 'block', type: 'lottie_heartbeat' },
-            { kind: 'block', type: 'lottie_weather' },
-            { kind: 'block', type: 'lottie_loading' },
-            { kind: 'block', type: 'lottie_robot' },
-            { kind: 'block', type: 'lottie_starburst' },
-            { kind: 'block', type: 'lottie_water' },
-            { kind: 'block', type: 'lottie_fire' },
-            { kind: 'block', type: 'lottie_lightning' },
-            { kind: 'block', type: 'lottie_gearspin' },
-          ]
-        },
 
         { kind: 'sep' },
 

@@ -6389,13 +6389,6 @@
       background: #A68AF9 !important;
     }
 
-    .blocklyToolboxCategory[data-figma="Display-lotte"] [class*="blocklyToolboxCategoryIcon"] {
-      background-image: url(../assets/img/img_018.svg) !important;
-    }
-
-    .blocklyToolboxCategory[data-figma="Display-lotte"]::before {
-      background: #F4405D !important;
-    }
 
     .blocklyToolboxCategory[data-figma="default block"] [class*="blocklyToolboxCategoryIcon"] {
       background-image: url(../assets/img/img_019.svg) !important;

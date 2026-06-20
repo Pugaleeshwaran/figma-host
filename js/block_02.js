@@ -1,5 +1,86 @@
 let workspace = null;
 let pyGen = null; // v12: set after Blockly loads
+let defaultToolboxConfig = null;
+
+function resetToolboxAndAIClasses() {
+  window._aiTrainedClasses = null;
+  window._voiceTrainedClasses = null;
+  window._poseTrainedClasses = null;
+  
+  try {
+    sessionStorage.removeItem('curio_ai_trained');
+    sessionStorage.removeItem('curio_voice_trained');
+    sessionStorage.removeItem('curio_pose_trained');
+  } catch (e) {}
+
+  if (typeof defaultToolboxConfig !== 'undefined' && defaultToolboxConfig) {
+    window.toolboxConfig = JSON.parse(JSON.stringify(defaultToolboxConfig));
+    if (typeof workspace !== 'undefined' && workspace) {
+      try {
+        workspace.updateToolbox(window.toolboxConfig);
+      } catch (e) {
+        console.warn('resetToolbox updateToolbox error:', e);
+      }
+    }
+  }
+
+  // Also reset block definitions to their default options (Class1/Class2)
+  if (typeof Blockly !== 'undefined' && Blockly.Blocks) {
+    const opts = [['Class1', 'Class1'], ['Class2', 'Class2']];
+    
+    if (Blockly.Blocks['ai_class_result']) {
+      delete Blockly.Blocks['ai_class_result'];
+      Blockly.defineBlocksWithJsonArray([{
+        type: 'ai_class_result',
+        message0: 'classifying result is %1',
+        args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+        colour: '#7c3aed', output: 'Boolean',
+        tooltip: 'Returns true if the camera sees this class.',
+      }]);
+    }
+
+    if (Blockly.Blocks['ai_class_reliability']) {
+      delete Blockly.Blocks['ai_class_reliability'];
+      Blockly.defineBlocksWithJsonArray([{
+        type: 'ai_class_reliability',
+        message0: 'reliability of %1',
+        args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+        colour: '#7c3aed', output: 'Number',
+        tooltip: 'Returns 0–100 confidence score for this class.',
+      }]);
+    }
+
+    if (Blockly.Blocks['ai_classify_image']) {
+      delete Blockly.Blocks['ai_classify_image'];
+      Blockly.defineBlocksWithJsonArray([{
+        type: 'ai_classify_image',
+        message0: 'classify image → result %1',
+        args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+        colour: '#f54254', previousStatement: null, nextStatement: null,
+        tooltip: 'Run AI classification on camera feed.',
+      }]);
+    }
+
+    // Clean up dynamically added voice/pose blocks if any
+    const voicePoseBlocks = [
+      'voice_heard', 'voice_confidence', 'voice_classify',
+      'pose_detected', 'pose_confidence', 'pose_classify'
+    ];
+    voicePoseBlocks.forEach(bType => {
+      if (Blockly.Blocks[bType]) delete Blockly.Blocks[bType];
+    });
+  }
+}
+
+function prepareSaveData() {
+  const state = Blockly.serialization.workspaces.save(workspace);
+  return {
+    workspaceState: state,
+    aiTrainedClasses: window._aiTrainedClasses || null,
+    voiceTrainedClasses: window._voiceTrainedClasses || null,
+    poseTrainedClasses: window._poseTrainedClasses || null
+  };
+}
 
 async function waitForBlockly(timeoutMs = 15000) {
   // With v12 CDN script tags, Blockly loads synchronously before the page
@@ -1774,6 +1855,7 @@ const CURIO_GRAD_CSS = `
         .delay_style  > .blocklyPath:first-of-type  { fill: #FB913B           !important; stroke: #C8671A; stroke-width:1px; }
         .logic_style  > .blocklyPath:first-of-type  { fill: #04B6D4           !important; stroke: #0290A8; stroke-width:1px; }
         .llm_style    > .blocklyPath:first-of-type  { fill: #F49E09           !important; stroke: #B87504; stroke-width:1px; }
+        .list_style   > .blocklyPath:first-of-type  { fill: #0FB881           !important; stroke: #0B8F64; stroke-width:1px; }
         .block_dc     > .blocklyPath:first-of-type  { fill: #6265F0           !important; stroke: #4A4DC8; stroke-width:1px; }
         .temp_style   > .blocklyPath:first-of-type  { fill: #0FB881           !important; stroke: #0B8F64; stroke-width:1px; }
         .block-servo  > .blocklyPath:first-of-type  { fill: #F266C1           !important; stroke: #F266C1; stroke-width:1px; }
@@ -1784,6 +1866,7 @@ const CURIO_GRAD_CSS = `
         .led_category_style > .blocklyPath:first-of-type  { fill: #22C45D           !important; stroke: #15803D; stroke-width:1px; }
         .txrx_category_style > .blocklyPath:first-of-type  { fill: #3B82F6           !important; stroke: #1D4ED8; stroke-width:1px; }
         .spi_category_style > .blocklyPath:first-of-type  { fill: #EB4899           !important; stroke: #BE185D; stroke-width:1px; }
+        .variable_style > .blocklyPath:first-of-type  { fill: #E9B308           !important; stroke: #B88A00; stroke-width:1px; }
         /* Hide duplicate overlay paths */
         .blocklyDraggable > .blocklyPath ~ .blocklyPath { fill: none !important; stroke: none !important; opacity: 0 !important; pointer-events: none !important; }
       `;
@@ -1798,7 +1881,9 @@ const CURIO_GRAD_DEFS = `
         <filter id="delayshodow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#FB913B"/></filter>
         <filter id="logicshodow"  x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#04B6D4"/></filter>
         <filter id="llmshodow"    x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#F49E09"/></filter>
+        <filter id="listshodow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#0FB881"/></filter>
         <filter id="tempshadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#0FB881"/></filter>
+        <filter id="variableshadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#E9B308"/></filter>
         <filter id="i2cshadow"   x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#8A5BF7"/></filter>
         <filter id="ultrashowdow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="2" stdDeviation="5" flood-color="#8B22A8"/></filter>
         <filter id="digitalShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="3" stdDeviation="5" flood-color="#c15b22"/></filter>
@@ -1816,10 +1901,6 @@ const BLOCK_SHADOW_MAP = {
   sim_dna: 'blueShadow', sim_gears: 'blueShadow', sim_wave: 'blueShadow',
   sim_bouncing: 'blueShadow', sim_windmill: 'blueShadow', sim_atom: 'blueShadow',
   sim_globe: 'blueShadow',
-  lottie_rocket: 'blueShadow', lottie_heartbeat: 'blueShadow', lottie_weather: 'blueShadow',
-  lottie_loading: 'blueShadow', lottie_robot: 'blueShadow', lottie_starburst: 'blueShadow',
-  lottie_water: 'blueShadow', lottie_fire: 'blueShadow', lottie_lightning: 'blueShadow',
-  lottie_gearspin: 'blueShadow',
 
   // ledshodow
   port_on: 'ledshodow', port_off: 'ledshodow',
@@ -1837,6 +1918,12 @@ const BLOCK_SHADOW_MAP = {
   ctl_delay: 'delayshodow',
   // llmshodow
   llm_text: 'llmshodow',
+  // listshodow
+  list_create_empty: 'listshodow', list_create_with: 'listshodow', list_add: 'listshodow',
+  list_get: 'listshodow', list_set: 'listshodow', list_remove: 'listshodow',
+  list_delete_all: 'listshodow', list_insert: 'listshodow', list_length: 'listshodow',
+  list_isEmpty: 'listshodow', list_contains: 'listshodow', list_indexOf: 'listshodow',
+  list_show: 'listshodow',
   // dummyshadow
   // logicshodow
   din_if_else: 'logicshodow', custom_if_then: 'logicshodow', any_input_block: 'logicshodow',
@@ -1889,6 +1976,15 @@ const BLOCK_SHADOW_MAP = {
   animo: 'digitalShadow', relay: 'digitalShadow', buzzer: 'digitalShadow',
   minifan: 'digitalShadow', buzzer_component: 'digitalShadow', ir_sen: 'digitalShadow',
   touch_sensor: 'digitalShadow', peltier: 'digitalShadow', microwave_sensor: 'digitalShadow',
+
+  // tempshadow — list blocks (green glow #0FB881)
+  list_create_empty: 'tempshadow', list_create_with: 'tempshadow',
+  list_add: 'tempshadow', list_get: 'tempshadow', list_set: 'tempshadow',
+  list_remove: 'tempshadow', list_delete_all: 'tempshadow', list_insert: 'tempshadow',
+  list_length: 'tempshadow', list_isEmpty: 'tempshadow', list_contains: 'tempshadow',
+  list_indexOf: 'tempshadow', list_show: 'tempshadow',
+  variables_get: 'variableshadow', variables_set: 'variableshadow', math_change: 'variableshadow',
+  list_variable_set: 'tempshadow', list_variable_get: 'tempshadow',
 };
 
 // CSS class -> solid color map
@@ -1898,9 +1994,11 @@ const CLASS_COLOR_MAP = {
   'dummy_block': '#79A637',
   'delay_style': '#FB913B',
   'logic_style': '#04B6D4',
-  'llm_style': '#F49E09',
+  'llm_style':  '#F49E09',
+  'list_style': '#0FB881',
   'block_dc': '#6265F0',
   'temp_style': '#0FB881',
+  'variable_style': '#E9B308',
   'block-servo': '#F266C1',
   'i2c_style': '#8A5BF7',
   'ultra_style': '#593A28',
@@ -1920,10 +2018,6 @@ const BLOCK_CLASS_MAP = {
   sim_dna: 'defult_style', sim_gears: 'defult_style', sim_wave: 'defult_style',
   sim_bouncing: 'defult_style', sim_windmill: 'defult_style', sim_atom: 'defult_style',
   sim_globe: 'defult_style',
-  lottie_rocket: 'defult_style', lottie_heartbeat: 'defult_style', lottie_weather: 'defult_style',
-  lottie_loading: 'defult_style', lottie_robot: 'defult_style', lottie_starburst: 'defult_style',
-  lottie_water: 'defult_style', lottie_fire: 'defult_style', lottie_lightning: 'defult_style',
-  lottie_gearspin: 'defult_style',
 
   // led_style
   port_on: 'led_style', port_off: 'led_style',
@@ -1933,6 +2027,12 @@ const BLOCK_CLASS_MAP = {
   ctl_delay: 'delay_style',
   // llm_style
   llm_text: 'llm_style',
+  // list_style
+  list_create_empty: 'list_style', list_create_with: 'list_style', list_add: 'list_style',
+  list_get: 'list_style', list_set: 'list_style', list_remove: 'list_style',
+  list_delete_all: 'list_style', list_insert: 'list_style', list_length: 'list_style',
+  list_isEmpty: 'list_style', list_contains: 'list_style', list_indexOf: 'list_style',
+  list_show: 'list_style',
   // dummy_block
 
   // block_dc
@@ -1997,6 +2097,15 @@ const BLOCK_CLASS_MAP = {
   animo: 'digital_style', relay: 'digital_style', buzzer: 'digital_style',
   minifan: 'digital_style', buzzer_component: 'digital_style', ir_sen: 'digital_style',
   touch_sensor: 'digital_style', peltier: 'digital_style', microwave_sensor: 'digital_style',
+
+  // temp_style — list blocks (#0FB881)
+  list_create_empty: 'temp_style', list_create_with: 'temp_style',
+  list_add: 'temp_style', list_get: 'temp_style', list_set: 'temp_style',
+  list_remove: 'temp_style', list_delete_all: 'temp_style', list_insert: 'temp_style',
+  list_length: 'temp_style', list_isEmpty: 'temp_style', list_contains: 'temp_style',
+  list_indexOf: 'temp_style', list_show: 'temp_style',
+  variables_get: 'variable_style', variables_set: 'variable_style', math_change: 'variable_style',
+  list_variable_set: 'temp_style', list_variable_get: 'temp_style',
 };
 
 /**
@@ -2113,9 +2222,10 @@ function applyGradientAndShadowToBlock(block) {
 
   // Add CSS class for resilience (used by the <style> injected in layer 2)
   const cls = BLOCK_CLASS_MAP[block.type];
+  const shadowId = BLOCK_SHADOW_MAP[block.type];
   if (cls) svgRoot.classList.add(cls);
 
-  // Get ALL blocklyPath elements ΓÇö apply gradient/color only to the FIRST,
+  // Get ALL blocklyPath elements — apply gradient/color only to the FIRST,
   // and force-hide any extras so they don't cover text/images/fields.
   const allPaths = svgRoot.querySelectorAll(':scope > .blocklyPath');
   if (allPaths.length === 0) return;
@@ -2123,8 +2233,8 @@ function applyGradientAndShadowToBlock(block) {
   // FIRST path: apply solid color + shadow
   const color = CLASS_COLOR_MAP[cls] || '#2685BF';
   allPaths[0].style.setProperty('fill', color, 'important');
-  if (BLOCK_SHADOW_MAP[block.type]) {
-    allPaths[0].style.setProperty('filter', 'url(#' + BLOCK_SHADOW_MAP[block.type] + ')', 'important');
+  if (shadowId) {
+    allPaths[0].style.setProperty('filter', 'url(#' + shadowId + ')', 'important');
   }
 
   // ALL EXTRA paths: make completely invisible so they can't cover content
@@ -2140,6 +2250,18 @@ function applyToAllBlocks() {
   const ws = Blockly.getMainWorkspace && Blockly.getMainWorkspace();
   if (!ws) return;
   ws.getAllBlocks(false).forEach(b => applyGradientAndShadowToBlock(b));
+  try {
+    let flyout = ws.getFlyout ? ws.getFlyout() : null;
+    if (!flyout && ws.getToolbox && ws.getToolbox()) {
+      flyout = ws.getToolbox().getFlyout();
+    }
+    const flyoutWs = flyout ? flyout.getWorkspace() : null;
+    if (flyoutWs) {
+      flyoutWs.getAllBlocks(false).forEach(b => applyGradientAndShadowToBlock(b));
+    }
+  } catch (e) {
+    console.error("Error styling flyout blocks:", e);
+  }
 }
 
 // =====================================================================
@@ -2339,6 +2461,44 @@ function setupGradientAndShadowOnBlocks() {
 // =====================================================================
 function defineBlocks() {
   Blockly.defineBlocksWithJsonArray([
+    {
+      "type": "list_variable_set",
+      "message0": "set %1 to %2",
+      "args0": [
+        {
+          "type": "field_variable",
+          "name": "VAR",
+          "variable": "%{BKY_VARIABLES_DEFAULT_NAME}",
+          "variableTypes": ["list"],
+          "defaultType": "list"
+        },
+        {
+          "type": "input_value",
+          "name": "VALUE"
+        }
+      ],
+      "inputsInline": true,
+      "previousStatement": null,
+      "nextStatement": null,
+      "colour": "#0FB881",
+      "extensions": ["list_color"]
+    },
+    {
+      "type": "list_variable_get",
+      "message0": "%1",
+      "args0": [
+        {
+          "type": "field_variable",
+          "name": "VAR",
+          "variable": "%{BKY_VARIABLES_DEFAULT_NAME}",
+          "variableTypes": ["list"],
+          "defaultType": "list"
+        }
+      ],
+      "output": null,
+      "colour": "#0FB881",
+      "extensions": ["list_color"]
+    },
     { type: "sim_solar", message0: "%1 Solar System %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Solar System" }], colour: "#f59e0b", previousStatement: null, nextStatement: null, extensions: ["sim_solar_click", "defult_style"] },
     { type: "sim_pendulum", message0: "%1 Pendulum %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Pendulum" }], colour: "#ef4444", previousStatement: null, nextStatement: null, extensions: ["sim_pendulum_click", "defult_style"] },
     { type: "sim_particles", message0: "%1 Particles %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Particles" }], colour: "#8b5cf6", previousStatement: null, nextStatement: null, extensions: ["sim_particles_click", "defult_style"] },
@@ -2349,16 +2509,6 @@ function defineBlocks() {
     { type: "sim_windmill", message0: "%1 Wind Turbine %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Wind Turbine" }], colour: "#22c55e", previousStatement: null, nextStatement: null, extensions: ["sim_windmill_click", "defult_style"] },
     { type: "sim_atom", message0: "%1 Atom Model %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Atom Model" }], colour: "#a855f7", previousStatement: null, nextStatement: null, extensions: ["sim_atom_click", "defult_style"] },
     { type: "sim_globe", message0: "%1 Earth Globe %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "3D", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "SIM_LABEL", text: "Earth Globe" }], colour: "#3b82f6", previousStatement: null, nextStatement: null, extensions: ["sim_globe_click", "defult_style"] },
-    { type: "lottie_rocket", message0: "%1 Rocket Launch %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Rocket Launch" }], colour: "#ef4444", previousStatement: null, nextStatement: null, extensions: ["lottie_rocket_click", "defult_style"] },
-    { type: "lottie_heartbeat", message0: "%1 Heartbeat %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Heartbeat" }], colour: "#f43f5e", previousStatement: null, nextStatement: null, extensions: ["lottie_heartbeat_click", "defult_style"] },
-    { type: "lottie_weather", message0: "%1 Weather %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Weather" }], colour: "#0ea5e9", previousStatement: null, nextStatement: null, extensions: ["lottie_weather_click", "defult_style"] },
-    { type: "lottie_loading", message0: "%1 Loading Spin %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Loading Spin" }], colour: "#8b5cf6", previousStatement: null, nextStatement: null, extensions: ["lottie_loading_click", "defult_style"] },
-    { type: "lottie_robot", message0: "%1 Robot Walk %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Robot Walk" }], colour: "#6366f1", previousStatement: null, nextStatement: null, extensions: ["lottie_robot_click", "defult_style"] },
-    { type: "lottie_starburst", message0: "%1 Star Burst %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Star Burst" }], colour: "#f59e0b", previousStatement: null, nextStatement: null, extensions: ["lottie_starburst_click", "defult_style"] },
-    { type: "lottie_water", message0: "%1 Water Drop %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Water Drop" }], colour: "#06b6d4", previousStatement: null, nextStatement: null, extensions: ["lottie_water_click", "defult_style"] },
-    { type: "lottie_fire", message0: "%1 Fire Flame %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Fire Flame" }], colour: "#f97316", previousStatement: null, nextStatement: null, extensions: ["lottie_fire_click", "defult_style"] },
-    { type: "lottie_lightning", message0: "%1 Lightning %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Lightning" }], colour: "#facc15", previousStatement: null, nextStatement: null, extensions: ["lottie_lightning_click", "defult_style"] },
-    { type: "lottie_gearspin", message0: "%1 Gear Spin %2 %3", args0: [{ type: "field_image", src: "./assets/img/robo.png", width: 35, height: 35, alt: "Anim", name: "IMG1", class: "hover-animate" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "ANIM_LABEL", text: "Gear Spin" }], colour: "#64748b", previousStatement: null, nextStatement: null, extensions: ["lottie_gearspin_click", "defult_style"] },
     {
       type: "speedo_3d",
       message0: "%1 Speedometer %2 %3",
@@ -2371,39 +2521,6 @@ function defineBlocks() {
       previousStatement: null,
       nextStatement: null,
       extensions: ["speedo_3d_click", "defult_style"]
-    },
-    {
-      type: "lottie_anim",
-      message0: "%1 Animation %2 %3",
-      args0: [
-        {
-          type: "field_image",
-          src: "./assets/img/robo.png",
-          width: 35,
-          height: 35,
-          alt: "Anim",
-          name: "IMG1",
-          class: "hover-animate"
-        },
-        {
-          type: "field_image",
-          src: "./assets/img/Chips_Chips_Show.png",
-          width: 15,
-          height: 15,
-          alt: "",
-          name: "IMG",
-          class: "hover-animate"
-        },
-        {
-          type: "field_label",
-          name: "ANIM_LABEL",
-          text: "Rocket"
-        }
-      ],
-      colour: "#f97316",
-      previousStatement: null,
-      nextStatement: null,
-      extensions: ["lottie_image_click", "defult_style"]
     },
     {
       type: "three_d_model",
@@ -3120,16 +3237,6 @@ function defineBlocks() {
     f.setOnClickHandler(() => open3DModal(this));
   });
 
-  Blockly.Extensions.register('lottie_image_click', function () {
-    this.appendDummyInput('HIDDEN_LOTTIE')
-      .appendField(new Blockly.FieldTextInput('rocket'), 'ANIM_ID')
-      .appendField(new Blockly.FieldTextInput('100'), 'ANIM_SPEED')
-      .appendField(new Blockly.FieldTextInput('true'), 'ANIM_LOOP')
-      .setVisible(false);
-    var f = this.getField('IMG');
-    if (!f) return;
-    f.setOnClickHandler(() => openLottieModal(this));
-  });
 
   Blockly.Extensions.register('speedo_3d_click', function () {
     this.appendDummyInput('HIDDEN_SPEEDO')
@@ -3150,16 +3257,6 @@ function defineBlocks() {
   Blockly.Extensions.register('sim_windmill_click', function () { this.appendDummyInput('H_SIM_WINDMILL').appendField(new Blockly.FieldTextInput('sim_windmill'), 'SIM_TYPE').appendField(new Blockly.FieldTextInput('50'), 'SIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openSimModal(this, 'sim_windmill')); });
   Blockly.Extensions.register('sim_atom_click', function () { this.appendDummyInput('H_SIM_ATOM').appendField(new Blockly.FieldTextInput('sim_atom'), 'SIM_TYPE').appendField(new Blockly.FieldTextInput('50'), 'SIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openSimModal(this, 'sim_atom')); });
   Blockly.Extensions.register('sim_globe_click', function () { this.appendDummyInput('H_SIM_GLOBE').appendField(new Blockly.FieldTextInput('sim_globe'), 'SIM_TYPE').appendField(new Blockly.FieldTextInput('50'), 'SIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openSimModal(this, 'sim_globe')); });
-  Blockly.Extensions.register('lottie_rocket_click', function () { this.appendDummyInput('H_LOTTIE_ROCKET').appendField(new Blockly.FieldTextInput('lottie_rocket'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_rocket')); });
-  Blockly.Extensions.register('lottie_heartbeat_click', function () { this.appendDummyInput('H_LOTTIE_HEARTBEAT').appendField(new Blockly.FieldTextInput('lottie_heartbeat'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_heartbeat')); });
-  Blockly.Extensions.register('lottie_weather_click', function () { this.appendDummyInput('H_LOTTIE_WEATHER').appendField(new Blockly.FieldTextInput('lottie_weather'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_weather')); });
-  Blockly.Extensions.register('lottie_loading_click', function () { this.appendDummyInput('H_LOTTIE_LOADING').appendField(new Blockly.FieldTextInput('lottie_loading'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_loading')); });
-  Blockly.Extensions.register('lottie_robot_click', function () { this.appendDummyInput('H_LOTTIE_ROBOT').appendField(new Blockly.FieldTextInput('lottie_robot'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_robot')); });
-  Blockly.Extensions.register('lottie_starburst_click', function () { this.appendDummyInput('H_LOTTIE_STARBURST').appendField(new Blockly.FieldTextInput('lottie_starburst'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_starburst')); });
-  Blockly.Extensions.register('lottie_water_click', function () { this.appendDummyInput('H_LOTTIE_WATER').appendField(new Blockly.FieldTextInput('lottie_water'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_water')); });
-  Blockly.Extensions.register('lottie_fire_click', function () { this.appendDummyInput('H_LOTTIE_FIRE').appendField(new Blockly.FieldTextInput('lottie_fire'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_fire')); });
-  Blockly.Extensions.register('lottie_lightning_click', function () { this.appendDummyInput('H_LOTTIE_LIGHTNING').appendField(new Blockly.FieldTextInput('lottie_lightning'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_lightning')); });
-  Blockly.Extensions.register('lottie_gearspin_click', function () { this.appendDummyInput('H_LOTTIE_GEARSPIN').appendField(new Blockly.FieldTextInput('lottie_gearspin'), 'LANIM_TYPE').appendField(new Blockly.FieldTextInput('100'), 'LANIM_SPEED').setVisible(false); var f = this.getField('IMG'); if (f) f.setOnClickHandler(() => openLAnimModal(this, 'lottie_gearspin')); });
   // Style extensions — apply class immediately AND on every change
   // so gradient stays consistent from the moment a block enters the workspace.
   function mkStyleExt(name, cls) {
@@ -3195,6 +3292,7 @@ function defineBlocks() {
   mkStyleExt('delay_color', 'delay_style');
   mkStyleExt('logic_color', 'logic_style');
   mkStyleExt('llm_color', 'llm_style');
+  mkStyleExt('list_color', 'list_style');
   mkStyleExt('temp_style', 'temp_style');
   mkStyleExt('i2c_style', 'i2c_style');
   mkStyleExt('digital_style', 'digital_style');
@@ -3446,13 +3544,6 @@ function defineGenerators() {
     return 'robot.display_3d("' + model + '", ' + speed + ', "' + color + '")\n';
   };
 
-  reg['lottie_anim'] = function (block) {
-    var animId = block.getFieldValue('ANIM_ID') || 'rocket';
-    var speed = block.getFieldValue('ANIM_SPEED') || '100';
-    var loop = block.getFieldValue('ANIM_LOOP') || 'true';
-    var speedFloat = (parseInt(speed) / 100).toFixed(1);
-    return 'robot.play_anim("' + animId + '", ' + speedFloat + ', ' + loop + ')\n';
-  };
 
   reg['speedo_3d'] = function (block) {
     var speed = block.getFieldValue('SPEED_VAL') || '0';
@@ -3469,16 +3560,6 @@ function defineGenerators() {
   reg['sim_windmill'] = function (b) { return 'robot.sim("sim_windmill", ' + (b.getFieldValue('SIM_SPEED') || '50') + ')\n'; };
   reg['sim_atom'] = function (b) { return 'robot.sim("sim_atom", ' + (b.getFieldValue('SIM_SPEED') || '50') + ')\n'; };
   reg['sim_globe'] = function (b) { return 'robot.sim("sim_globe", ' + (b.getFieldValue('SIM_SPEED') || '50') + ')\n'; };
-  reg['lottie_rocket'] = function (b) { return 'robot.anim("lottie_rocket", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_heartbeat'] = function (b) { return 'robot.anim("lottie_heartbeat", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_weather'] = function (b) { return 'robot.anim("lottie_weather", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_loading'] = function (b) { return 'robot.anim("lottie_loading", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_robot'] = function (b) { return 'robot.anim("lottie_robot", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_starburst'] = function (b) { return 'robot.anim("lottie_starburst", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_water'] = function (b) { return 'robot.anim("lottie_water", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_fire'] = function (b) { return 'robot.anim("lottie_fire", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_lightning'] = function (b) { return 'robot.anim("lottie_lightning", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
-  reg['lottie_gearspin'] = function (b) { return 'robot.anim("lottie_gearspin", ' + (parseInt(b.getFieldValue('LANIM_SPEED') || '100') / 100).toFixed(1) + ')\n'; };
   // Sensor output blocks
   // Maps block type → [asyncFnName, syncFnName]
   // asyncFnName is used for await async_xxx(...) in value context
@@ -4204,349 +4285,6 @@ function animateSim() {
 }
 
 // =====================================================================
-// LOTTIE ANIMATION MODAL (10 animations)
-// =====================================================================
-var currentLAnimBlock = null, currentLAnimType = '', lanimSpeed = 100, lanimPreviewAnim = null;
-var LANIM_META = {
-  lottie_rocket: { title: "Rocket Launch", desc: "Rocket launch animation", col: [1, 0.3, 0.2] },
-  lottie_heartbeat: { title: "Heartbeat", desc: "Pulsing heart animation", col: [0.96, 0.25, 0.37] },
-  lottie_weather: { title: "Weather", desc: "Weather cloud animation", col: [0.05, 0.65, 0.89] },
-  lottie_loading: { title: "Loading Spin", desc: "Loading spinner animation", col: [0.55, 0.36, 0.96] },
-  lottie_robot: { title: "Robot Walk", desc: "Walking robot animation", col: [0.39, 0.4, 0.95] },
-  lottie_starburst: { title: "Star Burst", desc: "Exploding star animation", col: [0.96, 0.62, 0.04] },
-  lottie_water: { title: "Water Drop", desc: "Water droplet animation", col: [0.02, 0.71, 0.83] },
-  lottie_fire: { title: "Fire Flame", desc: "Flickering flame animation", col: [0.98, 0.45, 0.09] },
-  lottie_lightning: { title: "Lightning", desc: "Lightning bolt animation", col: [0.98, 0.8, 0.08] },
-  lottie_gearspin: { title: "Gear Spin", desc: "Spinning gear animation", col: [0.39, 0.45, 0.55] }
-};
-
-function openLAnimModal(block, lanimType) {
-  currentLAnimBlock = block; currentLAnimType = lanimType;
-  lanimSpeed = parseInt(block.getFieldValue('LANIM_SPEED') || '100');
-  document.getElementById('lanimSpeedSlider').value = lanimSpeed;
-  document.getElementById('lanimSpeedVal').textContent = (lanimSpeed / 100).toFixed(1) + 'x';
-  var m = LANIM_META[lanimType] || { title: lanimType, desc: 'Animation', col: [0.5, 0.5, 0.5] };
-  document.getElementById('lanimTitle').textContent = m.title;
-  document.getElementById('lanimDesc').textContent = m.desc;
-  document.getElementById('lanimModal').style.display = 'flex';
-  loadLAnimPreview(lanimType);
-}
-function closeLAnimModal() { document.getElementById('lanimModal').style.display = 'none'; currentLAnimBlock = null; if (lanimPreviewAnim) { lanimPreviewAnim.destroy(); lanimPreviewAnim = null; } }
-function saveLAnimModal() { if (!currentLAnimBlock) { closeLAnimModal(); return; } currentLAnimBlock.setFieldValue(lanimSpeed.toString(), 'LANIM_SPEED'); closeLAnimModal(); }
-function onLAnimSpeedChange(v) { lanimSpeed = parseInt(v); document.getElementById('lanimSpeedVal').textContent = (lanimSpeed / 100).toFixed(1) + 'x'; if (lanimPreviewAnim) lanimPreviewAnim.setSpeed(lanimSpeed / 100); }
-
-function loadLAnimPreview(animType) {
-  var c = document.getElementById('lanimPreview'); c.innerHTML = '';
-  if (lanimPreviewAnim) { lanimPreviewAnim.destroy(); lanimPreviewAnim = null; }
-  var m = LANIM_META[animType] || { col: [0.5, 0.5, 0.5] };
-  try {
-    lanimPreviewAnim = lottie.loadAnimation({ container: c, renderer: 'svg', loop: true, autoplay: true, animationData: buildLAnimData(animType, m.col), rendererSettings: { preserveAspectRatio: 'xMidYMid meet' } });
-    lanimPreviewAnim.setSpeed(lanimSpeed / 100);
-  } catch (e) { c.innerHTML = '<div style="color:#9ca3af;font-size:12px;text-align:center;padding:20px">Preview unavailable</div>'; }
-}
-
-function buildLAnimData(at, c) {
-  var sh, ks, dur = 60;
-  switch (at) {
-    case 'lottie_rocket':
-      sh = [{ ty: "rc", d: 1, s: { a: 0, k: [30, 70] }, p: { a: 0, k: [0, -10] }, r: { a: 0, k: 6 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 0, k: 0 }, p: { a: 1, k: [{ i: { x: [.5], y: [1] }, o: { x: [.5], y: [0] }, t: 0, s: [100, 180, 0] }, { t: 60, s: [100, 20, 0] }] }, s: { a: 1, k: [{ i: { x: [.5, .5, .5], y: [1, 1, 1] }, o: { x: [.5, .5, .5], y: [0, 0, 0] }, t: 0, s: [100, 100, 100] }, { t: 30, s: [110, 110, 100] }, { t: 60, s: [100, 100, 100] }] } }; break;
-    case 'lottie_heartbeat':
-      sh = [{ ty: "el", d: 1, s: { a: 0, k: [60, 60] }, p: { a: 0, k: [0, 0] } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 0, k: 0 }, p: { a: 0, k: [100, 100, 0] }, s: { a: 1, k: [{ i: { x: [.4, .4, .4], y: [1, 1, 1] }, o: { x: [.6, .6, .6], y: [0, 0, 0] }, t: 0, s: [100, 100, 100] }, { t: 8, s: [125, 125, 100] }, { t: 14, s: [88, 88, 100] }, { t: 20, s: [118, 118, 100] }, { t: 30, s: [100, 100, 100] }] } }; dur = 30; break;
-    case 'lottie_weather':
-      sh = [{ ty: "el", d: 1, s: { a: 0, k: [80, 50] }, p: { a: 0, k: [0, -10] } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 80 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 0, k: 0 }, p: { a: 1, k: [{ i: { x: [.5], y: [1] }, o: { x: [.5], y: [0] }, t: 0, s: [90, 100, 0] }, { t: 30, s: [110, 100, 0] }, { t: 60, s: [90, 100, 0] }] }, s: { a: 0, k: [100, 100, 100] } }; break;
-    case 'lottie_loading':
-      sh = [{ ty: "rc", d: 1, s: { a: 0, k: [20, 60] }, p: { a: 0, k: [0, -30] }, r: { a: 0, k: 4 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 1, k: [{ t: 0, s: [100] }, { t: 30, s: [30] }, { t: 60, s: [100] }] }, r: { a: 1, k: [{ i: { x: [.5], y: [1] }, o: { x: [.5], y: [0] }, t: 0, s: [0] }, { t: 60, s: [360] }] }, p: { a: 0, k: [100, 100, 0] }, s: { a: 0, k: [100, 100, 100] } }; break;
-    case 'lottie_robot':
-      sh = [{ ty: "rc", d: 1, s: { a: 0, k: [50, 60] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: 8 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 1, k: [{ t: 0, s: [-10] }, { t: 15, s: [10] }, { t: 30, s: [-10] }, { t: 45, s: [10] }, { t: 60, s: [-10] }] }, p: { a: 1, k: [{ t: 0, s: [80, 100, 0] }, { t: 30, s: [120, 100, 0] }, { t: 60, s: [80, 100, 0] }] }, s: { a: 0, k: [100, 100, 100] } }; break;
-    case 'lottie_starburst':
-      sh = [{ ty: "sr", d: 1, s: { a: 0, k: [40, 20] }, p: { a: 0, k: [0, 0] }, pt: { a: 0, k: 5 }, sy: 1, or: { a: 0, k: 40 }, os: { a: 0, k: 0 }, ir: { a: 0, k: 20 }, is: { a: 0, k: 0 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 1, k: [{ t: 0, s: [0] }, { t: 60, s: [360] }] }, p: { a: 0, k: [100, 100, 0] }, s: { a: 1, k: [{ t: 0, s: [50, 50, 100] }, { t: 30, s: [120, 120, 100] }, { t: 60, s: [50, 50, 100] }] } }; break;
-    case 'lottie_water':
-      sh = [{ ty: "el", d: 1, s: { a: 0, k: [40, 50] }, p: { a: 0, k: [0, 0] } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 80 }, r: 1 }];
-      ks = { o: { a: 1, k: [{ t: 0, s: [100] }, { t: 45, s: [100] }, { t: 60, s: [0] }] }, r: { a: 0, k: 0 }, p: { a: 1, k: [{ t: 0, s: [100, 40, 0] }, { t: 60, s: [100, 180, 0] }] }, s: { a: 1, k: [{ t: 0, s: [100, 100, 100] }, { t: 60, s: [60, 130, 100] }] } }; break;
-    case 'lottie_fire':
-      sh = [{ ty: "el", d: 1, s: { a: 0, k: [50, 70] }, p: { a: 0, k: [0, 5] } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 90 }, r: 1 }];
-      ks = { o: { a: 1, k: [{ t: 0, s: [100] }, { t: 15, s: [70] }, { t: 30, s: [100] }, { t: 45, s: [60] }, { t: 60, s: [100] }] }, r: { a: 0, k: 0 }, p: { a: 1, k: [{ t: 0, s: [100, 110, 0] }, { t: 30, s: [100, 90, 0] }, { t: 60, s: [100, 110, 0] }] }, s: { a: 1, k: [{ t: 0, s: [100, 100, 100] }, { t: 15, s: [110, 90, 100] }, { t: 30, s: [90, 110, 100] }, { t: 45, s: [105, 95, 100] }, { t: 60, s: [100, 100, 100] }] } }; break;
-    case 'lottie_lightning':
-      sh = [{ ty: "rc", d: 1, s: { a: 0, k: [15, 80] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: 2 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 1, k: [{ t: 0, s: [0] }, { t: 5, s: [100] }, { t: 10, s: [0] }, { t: 12, s: [100] }, { t: 18, s: [0] }, { t: 50, s: [0] }, { t: 55, s: [100] }, { t: 60, s: [0] }] }, r: { a: 0, k: 15 }, p: { a: 0, k: [100, 100, 0] }, s: { a: 1, k: [{ t: 0, s: [100, 100, 100] }, { t: 5, s: [100, 120, 100] }, { t: 10, s: [100, 100, 100] }] } }; break;
-    default:
-      sh = [{ ty: "rc", d: 1, s: { a: 0, k: [70, 70] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: 10 } }, { ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1 }];
-      ks = { o: { a: 0, k: 100 }, r: { a: 1, k: [{ t: 0, s: [0] }, { t: 60, s: [360] }] }, p: { a: 0, k: [100, 100, 0] }, s: { a: 0, k: [100, 100, 100] } };
-  }
-  return { v: "5.7.1", fr: 30, ip: 0, op: dur, w: 200, h: 200, nm: at, ddd: 0, assets: [], layers: [{ ddd: 0, ind: 1, ty: 4, nm: "shape", sr: 1, ks: ks, ao: 0, shapes: sh, ip: 0, op: dur, st: 0 }] };
-}
-
-// =====================================================================
-// LOTTIE ANIMATION PICKER — Modal Logic
-// =====================================================================
-var currentLottieBlock = null;
-var selectedAnimId = 'rocket';
-var lottieSpeed = 100;
-var lottieLoopEnabled = true;
-var lottiePreviewAnim = null;
-var lottieThumbnailAnims = [];
-var currentLottieTab = 'sensors';
-
-// Pre-loaded animation registry
-// Each entry: { id, name, category, data }
-// 'data' is inline Lottie JSON (small animations) or path to local file
-var LOTTIE_LIBRARY = {
-  sensors: [
-    { id: 'thermometer', name: 'Temperature', icon: '🌡️' },
-    { id: 'water_drop', name: 'Water Drop', icon: '💧' },
-    { id: 'light_bulb', name: 'Light Bulb', icon: '💡' },
-    { id: 'sound_wave', name: 'Sound Wave', icon: '🔊' },
-    { id: 'flame', name: 'Flame', icon: '🔥' },
-    { id: 'wind', name: 'Wind', icon: '🌬️' }
-  ],
-  robot: [
-    { id: 'happy_face', name: 'Happy', icon: '😊' },
-    { id: 'sad_face', name: 'Sad', icon: '😢' },
-    { id: 'thinking', name: 'Thinking', icon: '🤔' },
-    { id: 'celebrate', name: 'Celebrate', icon: '🎉' },
-    { id: 'alert', name: 'Alert', icon: '⚠️' },
-    { id: 'sleep', name: 'Sleep', icon: '😴' }
-  ],
-  status: [
-    { id: 'loading', name: 'Loading', icon: '⏳' },
-    { id: 'success', name: 'Success', icon: '✅' },
-    { id: 'error', name: 'Error', icon: '❌' },
-    { id: 'connecting', name: 'Connecting', icon: '🔗' },
-    { id: 'uploading', name: 'Uploading', icon: '📤' },
-    { id: 'heartbeat', name: 'Heartbeat', icon: '💓' }
-  ],
-  stem: [
-    { id: 'rocket', name: 'Rocket', icon: '🚀' },
-    { id: 'gears', name: 'Gears', icon: '⚙️' },
-    { id: 'atom', name: 'Atom', icon: '⚛️' },
-    { id: 'circuit', name: 'Circuit', icon: '🔌' },
-    { id: 'dna', name: 'DNA', icon: '🧬' },
-    { id: 'satellite', name: 'Satellite', icon: '🛰️' }
-  ]
-};
-
-// Generates a simple Lottie-compatible JSON for built-in shapes
-// (So it works offline without external JSON files)
-function generateBuiltInLottie(animId) {
-  // Base template: a 60-frame animation at 30fps
-  var base = {
-    v: "5.7.1", fr: 30, ip: 0, op: 60, w: 200, h: 200,
-    nm: animId, ddd: 0, assets: [], layers: []
-  };
-
-  // Color based on category
-  var colors = {
-    thermometer: [1, 0.3, 0.2], water_drop: [0.2, 0.6, 1], light_bulb: [1, 0.85, 0.2],
-    sound_wave: [0.4, 0.8, 0.4], flame: [1, 0.5, 0.1], wind: [0.6, 0.8, 0.9],
-    happy_face: [0.3, 0.9, 0.4], sad_face: [0.3, 0.5, 0.9], thinking: [0.7, 0.5, 1],
-    celebrate: [1, 0.8, 0.2], alert: [1, 0.6, 0.1], sleep: [0.5, 0.5, 0.7],
-    loading: [0.3, 0.7, 1], success: [0.2, 0.8, 0.4], error: [1, 0.3, 0.3],
-    connecting: [0.3, 0.8, 0.8], uploading: [0.5, 0.6, 1], heartbeat: [1, 0.3, 0.5],
-    rocket: [1, 0.4, 0.2], gears: [0.5, 0.5, 0.6], atom: [0.3, 0.6, 1],
-    circuit: [0.2, 0.9, 0.5], dna: [0.6, 0.3, 0.9], satellite: [0.4, 0.7, 1]
-  };
-
-  var c = colors[animId] || [0.5, 0.5, 0.5];
-
-  // Pulsing circle animation (works for all — simple but effective)
-  base.layers = [{
-    ddd: 0, ind: 1, ty: 4, nm: "shape", sr: 1, ks: {
-      o: { a: 0, k: 100 }, r: {
-        a: 1, k: [
-          { i: { x: [0.5], y: [1] }, o: { x: [0.5], y: [0] }, t: 0, s: [0] },
-          { t: 60, s: [360] }
-        ]
-      },
-      p: { a: 0, k: [100, 100, 0] },
-      s: {
-        a: 1, k: [
-          { i: { x: [0.5, 0.5, 0.5], y: [1, 1, 1] }, o: { x: [0.5, 0.5, 0.5], y: [0, 0, 0] }, t: 0, s: [80, 80, 100] },
-          { i: { x: [0.5, 0.5, 0.5], y: [1, 1, 1] }, o: { x: [0.5, 0.5, 0.5], y: [0, 0, 0] }, t: 30, s: [100, 100, 100] },
-          { t: 60, s: [80, 80, 100] }
-        ]
-      }
-    },
-    ao: 0, shapes: [{
-      ty: "rc", d: 1, s: { a: 0, k: [80, 80] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: 20 }, nm: "rect"
-    }, {
-      ty: "fl", c: { a: 0, k: [c[0], c[1], c[2], 1] }, o: { a: 0, k: 100 }, r: 1, nm: "fill"
-    }],
-    ip: 0, op: 60, st: 0
-  }];
-
-  return base;
-}
-
-function openLottieModal(block) {
-  currentLottieBlock = block;
-  selectedAnimId = block.getFieldValue('ANIM_ID') || 'rocket';
-  lottieSpeed = parseInt(block.getFieldValue('ANIM_SPEED') || '100');
-  lottieLoopEnabled = block.getFieldValue('ANIM_LOOP') !== 'false';
-
-  document.getElementById('lottieSpeed').value = lottieSpeed;
-  document.getElementById('lottieSpeedLabel').textContent = (lottieSpeed / 100).toFixed(1) + 'x';
-  document.getElementById('lottieLoop').checked = lottieLoopEnabled;
-
-  // Find which tab the selected anim belongs to
-  currentLottieTab = 'sensors';
-  Object.keys(LOTTIE_LIBRARY).forEach(function (cat) {
-    LOTTIE_LIBRARY[cat].forEach(function (a) {
-      if (a.id === selectedAnimId) currentLottieTab = cat;
-    });
-  });
-
-  document.getElementById('lottieModal').style.display = 'flex';
-  switchLottieTab(currentLottieTab);
-}
-
-function closeLottieModal() {
-  document.getElementById('lottieModal').style.display = 'none';
-  currentLottieBlock = null;
-  destroyLottiePreviews();
-}
-
-function destroyLottiePreviews() {
-  if (lottiePreviewAnim) { lottiePreviewAnim.destroy(); lottiePreviewAnim = null; }
-  lottieThumbnailAnims.forEach(function (a) { a.destroy(); });
-  lottieThumbnailAnims = [];
-}
-
-function saveLottieSelection() {
-  if (!currentLottieBlock) { closeLottieModal(); return; }
-  currentLottieBlock.setFieldValue(selectedAnimId, 'ANIM_ID');
-  currentLottieBlock.setFieldValue(lottieSpeed.toString(), 'ANIM_SPEED');
-  currentLottieBlock.setFieldValue(lottieLoopEnabled.toString(), 'ANIM_LOOP');
-  // Update visible label
-  var name = selectedAnimId;
-  Object.keys(LOTTIE_LIBRARY).forEach(function (cat) {
-    LOTTIE_LIBRARY[cat].forEach(function (a) {
-      if (a.id === selectedAnimId) name = a.name;
-    });
-  });
-  var label = currentLottieBlock.getField('ANIM_LABEL');
-  if (label) label.setValue(name);
-  closeLottieModal();
-}
-
-function switchLottieTab(tab) {
-  currentLottieTab = tab;
-  document.querySelectorAll('.lottie-tab').forEach(function (t) {
-    t.classList.toggle('active', t.textContent.toLowerCase() === tab);
-  });
-  renderLottieGrid(tab);
-}
-
-function renderLottieGrid(category) {
-  destroyLottiePreviews();
-  var grid = document.getElementById('lottieGrid');
-  grid.innerHTML = '';
-  var items = LOTTIE_LIBRARY[category] || [];
-
-  items.forEach(function (anim) {
-    var item = document.createElement('div');
-    item.className = 'lottie-item' + (anim.id === selectedAnimId ? ' selected' : '');
-    item.onclick = function () { selectLottieAnim(anim.id); };
-
-    var preview = document.createElement('div');
-    preview.className = 'lottie-preview';
-    preview.id = 'lottie-thumb-' + anim.id;
-
-    var nameEl = document.createElement('div');
-    nameEl.className = 'lottie-name';
-    nameEl.textContent = anim.icon + ' ' + anim.name;
-
-    item.appendChild(preview);
-    item.appendChild(nameEl);
-    grid.appendChild(item);
-
-    // Load animation thumbnail
-    try {
-      var thumbAnim = lottie.loadAnimation({
-        container: preview,
-        renderer: 'svg',
-        loop: true,
-        autoplay: true,
-        animationData: generateBuiltInLottie(anim.id),
-        rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
-      });
-      lottieThumbnailAnims.push(thumbAnim);
-    } catch (e) { console.log('Lottie thumb error:', e); }
-  });
-
-  // Show large preview of selected
-  loadLottiePreview(selectedAnimId);
-}
-
-function selectLottieAnim(animId) {
-  selectedAnimId = animId;
-  document.querySelectorAll('.lottie-item').forEach(function (item) {
-    var isSelected = item.querySelector('.lottie-preview').id === 'lottie-thumb-' + animId;
-    item.classList.toggle('selected', isSelected);
-  });
-  loadLottiePreview(animId);
-}
-
-function loadLottiePreview(animId) {
-  var container = document.getElementById('lottiePreviewLarge');
-  container.innerHTML = '';
-  if (lottiePreviewAnim) { lottiePreviewAnim.destroy(); lottiePreviewAnim = null; }
-
-  try {
-    // Try loading from local file first, fallback to built-in
-    var animData = generateBuiltInLottie(animId);
-    lottiePreviewAnim = lottie.loadAnimation({
-      container: container,
-      renderer: 'svg',
-      loop: lottieLoopEnabled,
-      autoplay: true,
-      animationData: animData,
-      rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
-    });
-    lottiePreviewAnim.setSpeed(lottieSpeed / 100);
-  } catch (e) {
-    container.innerHTML = '<div style="color:#9ca3af;font-size:13px;">Preview unavailable</div>';
-  }
-}
-
-function updateLottieSpeed(val) {
-  lottieSpeed = parseInt(val);
-  document.getElementById('lottieSpeedLabel').textContent = (lottieSpeed / 100).toFixed(1) + 'x';
-  if (lottiePreviewAnim) lottiePreviewAnim.setSpeed(lottieSpeed / 100);
-}
-
-function updateLottieLoop(checked) {
-  lottieLoopEnabled = checked;
-  if (lottiePreviewAnim) {
-    lottiePreviewAnim.loop = checked;
-    if (checked) lottiePreviewAnim.play();
-  }
-}
-
-// ── Load custom Lottie JSON from local assets ──
-// Students or teachers can add JSON files to assets/lottie/
-// and they will be auto-discovered by this function
-function loadCustomLottie(animId, jsonPath) {
-  return new Promise(function (resolve, reject) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', jsonPath, true);
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch (e) { reject(e); }
-      } else { reject('HTTP ' + xhr.status); }
-    };
-    xhr.onerror = reject;
-    xhr.send();
-  });
-}
-
-// =====================================================================
 // THREE.JS 3D MODEL VIEWER — Modal Logic
 // =====================================================================
 var current3DBlock = null;
@@ -4822,13 +4560,17 @@ async function start() {
   const ok = await waitForBlockly();
   if (!ok) { console.error('Blockly/Python failed to load'); return; }
 
+  if (window.toolboxConfig) {
+    defaultToolboxConfig = JSON.parse(JSON.stringify(window.toolboxConfig));
+  }
+
   const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
     base: Blockly.Themes.Classic,
     blockStyles: {
       'loop_blocks': { colourPrimary: '#6265F0', colourSecondary: '#4A4DC8', colourTertiary: '#4A4DC8' },
       'logic_blocks': { colourPrimary: '#04B6D4', colourSecondary: '#0290A8', colourTertiary: '#0290A8' },
-      'variable_blocks': { colourPrimary: '#0FB881', colourSecondary: '#0A8A5F', colourTertiary: '#0A8A5F' },
-      'variable_dynamic_blocks': { colourPrimary: '#0FB881', colourSecondary: '#0A8A5F', colourTertiary: '#0A8A5F' }
+      'variable_blocks': { colourPrimary: '#E9B308', colourSecondary: '#B88A00', colourTertiary: '#B88A00' },
+      'variable_dynamic_blocks': { colourPrimary: '#E9B308', colourSecondary: '#B88A00', colourTertiary: '#B88A00' }
     },
     componentStyles: {
       workspaceBackgroundColour: '#ffffff',
@@ -4863,7 +4605,7 @@ async function start() {
       "type": "list_create_empty",
       "message0": "create empty list",
       "output": "Array",
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Creates an empty list []"
     },
     // 2) Create list with items [ , , ]
@@ -4873,7 +4615,7 @@ async function start() {
       "args0": [{ "type": "input_value", "name": "ITEM0" }],
       "output": "Array",
       "inputsInline": true,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "mutator": "list_create_with_mutator",
       "tooltip": "Create a list with items"
     },
@@ -4888,7 +4630,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Append an item to a list"
     },
     // 4) Get item from list by index
@@ -4901,7 +4643,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Get item at index (starts from 0)"
     },
     // 5) Set item in list by index
@@ -4916,7 +4658,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Replace item at index"
     },
     // 6) Delete item from list
@@ -4930,7 +4672,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Delete item at index"
     },
     // 7) Delete all of list
@@ -4943,7 +4685,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Delete all items from the list"
     },
     // 8) Insert item at index
@@ -4958,7 +4700,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Insert item at a specific index"
     },
     // 9) Length of list
@@ -4970,7 +4712,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Number",
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Returns the number of items in the list"
     },
     // 10) List is empty?
@@ -4982,7 +4724,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Boolean",
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Returns True if the list is empty"
     },
     // 11) List contains item?
@@ -4995,7 +4737,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Boolean",
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Returns True if item is in the list"
     },
     // 12) Item # of thing in list
@@ -5008,7 +4750,7 @@ async function start() {
       ],
       "inputsInline": true,
       "output": "Number",
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Returns the index of the first occurrence"
     },
     // 13) Show list (print)
@@ -5021,7 +4763,7 @@ async function start() {
       "inputsInline": true,
       "previousStatement": null,
       "nextStatement": null,
-      "colour": "#0FB881",
+      "colour": "#0FB881", "extensions": ["list_color"],
       "tooltip": "Print the list"
     }
   ]);
@@ -5206,6 +4948,21 @@ async function start() {
     return [varName, gen.ORDER_ATOMIC];
   };
 
+  _pyFB['list_variable_set'] = function (block, generator) {
+    var gen = generator || pyGen;
+    var varField = block.getField('VAR');
+    var varName = varField ? gen.nameDB_.getName(varField.getText(), Blockly.Names.NameType.VARIABLE) : 'my_list';
+    var value = gen.valueToCode(block, 'VALUE', gen.ORDER_NONE);
+    return varName + ' = ' + (value || '[]') + '\n';
+  };
+
+  _pyFB['list_variable_get'] = function (block, generator) {
+    var gen = generator || pyGen;
+    var varField = block.getField('VAR');
+    var varName = varField ? gen.nameDB_.getName(varField.getText(), Blockly.Names.NameType.VARIABLE) : 'my_list';
+    return [varName, gen.ORDER_ATOMIC];
+  };
+
   // ── Patch pyGen.finish to init list-typed vars as [] not None ──
   var _origFinish = pyGen.finish;
   pyGen.finish = function (code) {
@@ -5246,7 +5003,7 @@ async function start() {
       // Helper: creates a <value name="LIST"> with the variable pre-attached
       var listVarXml = function (varName) {
         return '<value name="LIST">' +
-          '<block type="variables_get">' +
+          '<block type="list_variable_get">' +
           '<field name="VAR" variabletype="list">' + (varName || defaultListName) + '</field>' +
           '</block></value>';
       };
@@ -5258,7 +5015,7 @@ async function start() {
       // "set [myList] to" for each list variable
       for (var i = 0; i < listVars.length; i++) {
         xmlList.push(Blockly.utils.xml.textToDom(
-          '<block type="variables_set">' +
+          '<block type="list_variable_set">' +
           '  <field name="VAR" variabletype="list">' + listVars[i].name + '</field>' +
           '</block>'
         ));
@@ -5267,7 +5024,7 @@ async function start() {
       // "get [myList]" for each list variable
       for (var i = 0; i < listVars.length; i++) {
         xmlList.push(Blockly.utils.xml.textToDom(
-          '<block type="variables_get">' +
+          '<block type="list_variable_get">' +
           '  <field name="VAR" variabletype="list">' + listVars[i].name + '</field>' +
           '</block>'
         ));
@@ -5360,11 +5117,11 @@ async function start() {
       'Digital': '#E57333', 'Analog': '#0FB881', 'I2c': '#8A5BF7', 'PWM': '#F49E09',
       'LEDs': '#22C45D', 'Tx-Rx': '#3B82F6', 'SPI': '#EB4899', 'Loop': '#6265F0',
       'Delay': '#FB913B', 'Logic': '#04B6D4', 'Maths': '#84CB17', 'A.I. Vision': '#EE4444',
-      'AI blocks': '#E9B308', 'Variable': '#0FB881', 'Function': '#F4405D',
-      'List': '#A68AF9', 'Display-3.js': '#A68AF9', 'Display-lotte': '#F4405D', 'default block': '#84CB17',
+      'AI blocks': '#E9B308', 'Variable': '#E9B308', 'Function': '#F4405D',
+      'List': '#0FB881', 'Display-3.js': '#A68AF9', 'default block': '#84CB17',
       'Search': '#526271', 'A.I. Voice': '#7c3aed', 'A.I. Pose': '#0ea5e9', 'Llm': '#0DA5E8'
     };
-    var ICONS = { 'Digital': 'assets/img/icon_001.svg', 'Analog': 'assets/img/icon_002.svg', 'I2c': 'assets/img/icon_003.svg', 'PWM': 'assets/img/icon_004.svg', 'LEDs': 'assets/img/icon_005.svg', 'Tx-Rx': 'assets/img/icon_006.svg', 'SPI': 'assets/img/icon_007.svg', 'Loop': 'assets/img/icon_008.svg', 'Delay': 'assets/img/icon_009.svg', 'Logic': 'assets/img/icon_010.svg', 'Maths': 'assets/img/icon_011.svg', 'A.I. Vision': 'assets/img/icon_012.svg', 'AI blocks': 'assets/img/icon_012.svg', 'Variable': 'assets/img/icon_013.svg', 'Display-3.js': 'assets/img/icon_014.svg', 'List': 'assets/img/icon_015.svg', 'Function': 'assets/img/icon_016.svg', 'Display-lotte': 'assets/img/icon_014.svg', 'default block': 'assets/img/icon_017.svg', 'Llm': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2Ljg3NSAxMS44NzVDMTcuOTA4OCAxMS44NzUgMTguNzUgMTEuMDMzNyAxOC43NSAxMEMxOC43NSA4Ljk2NjI1IDE3LjkwODggOC4xMjUgMTYuODc1IDguMTI1QzE2LjQ4ODUgOC4xMjYxNSAxNi4xMTE4IDguMjQ2OTIgMTUuNzk2NyA4LjQ3MDc0QzE1LjQ4MTUgOC42OTQ1NSAxNS4yNDM0IDkuMDEwNDMgMTUuMTE1IDkuMzc1SDExLjUwODdMMTYuMDcxMyA0LjgxMjVDMTYuMzE2MyA0LjkyOTM3IDE2LjU4NjMgNSAxNi44NzUgNUMxNy45MDg4IDUgMTguNzUgNC4xNTg3NSAxOC43NSAzLjEyNUMxOC43NSAyLjA5MTI1IDE3LjkwODggMS4yNSAxNi44NzUgMS4yNUMxNS44NDEzIDEuMjUgMTUgMi4wOTEyNSAxNSAzLjEyNUMxNSAzLjQxMzc1IDE1LjA3MTIgMy42ODM3NSAxNS4xODc1IDMuOTI4MTJMMTAgOS4xMTYyNVY1QzEwIDQuMzExMjUgMTAuNTYwNiAzLjc1IDExLjI1IDMuNzVIMTIuNVYyLjVIMTEuMjVDMTAuNSAyLjUgOS44MzM3NSAyLjgzOTM4IDkuMzc1IDMuMzYzNzVDOS4xNDI1MiAzLjA5Mzk0IDguODU0ODEgMi44NzcyIDguNTMxMzMgMi43MjgxOEM4LjIwNzg2IDIuNTc5MTcgNy44NTYxNSAyLjUwMTM1IDcuNSAyLjVINi44NzVDMy43NzM3NSAyLjUgMS4yNSA1LjAyMzEzIDEuMjUgOC4xMjVWMTEuODc1QzEuMjUgMTQuOTc2OSAzLjc3Mzc1IDE3LjUgNi44NzUgMTcuNUg3LjVDOC4yNSAxNy41IDguOTE2MjUgMTcuMTYxMyA5LjM3NSAxNi42MzYyQzkuODMzNzUgMTcuMTYxMyAxMC41IDE3LjUgMTEuMjUgMTcuNUgxMi41VjE2LjI1SDExLjI1QzEwLjU2MDYgMTYuMjUgMTAgMTUuNjg5NCAxMCAxNVYxMC44ODM3TDE1LjE4NzUgMTYuMDcxOUMxNS4wNzA2IDE2LjMxNjIgMTUgMTYuNTg2MyAxNSAxNi44NzVDMTUgMTcuOTA5NCAxNS44NDEzIDE4Ljc1IDE2Ljg3NSAxOC43NUMxNy45MDg4IDE4Ljc1IDE4Ljc1IDE3LjkwOTQgMTguNzUgMTYuODc1QzE4Ljc1IDE1Ljg0MDYgMTcuOTA4OCAxNSAxNi44NzUgMTVDMTYuNTk2NSAxNS4wMDE1IDE2LjMyMiAxNS4wNjU4IDE2LjA3MTkgMTUuMTg4MUwxMS41MDg3IDEwLjYyNTZIMTUuMTE1QzE1LjI0MzUgMTAuOTkwMSAxNS40ODE3IDExLjMwNTggMTUuNzk2OCAxMS41Mjk1QzE2LjExMTkgMTEuNzUzMiAxNi40ODg2IDExLjg3MzkgMTYuODc1IDExLjg3NVpNMTYuODc1IDkuMzc1QzE3LjA0MDggOS4zNzUgMTcuMTk5NyA5LjQ0MDg1IDE3LjMxNjkgOS41NTgwNkMxNy40MzQyIDkuNjc1MjcgMTcuNSA5LjgzNDI0IDE3LjUgMTBDMTcuNSAxMC4xNjU4IDE3LjQzNDIgMTAuMzI0NyAxNy4zMTY5IDEwLjQ0MTlDMTcuMTk5NyAxMC41NTkyIDE3LjA0MDggMTAuNjI1IDE2Ljg3NSAxMC42MjVDMTYuNzA5MiAxMC42MjUgMTYuNTUwMyAxMC41NTkyIDE2LjQzMzEgMTAuNDQxOUMxNi4zMTU4IDEwLjMyNDcgMTYuMjUgMTAuMTY1OCAxNi4yNSAxMEMxNi4yNSA5LjgzNDI0IDE2LjMxNTggOS42NzUyNyAxNi40MzMxIDkuNTU4MDZDMTYuNTUwMyA5LjQ0MDg1IDE2LjcwOTIgOS4zNzUgMTYuODc1IDkuMzc1Wk0xNi44NzUgMi41QzE3LjAzNTkgMi41MDcyIDE3LjE4NzkgMi41NzYxOSAxNy4yOTkyIDIuNjkyNjFDMTcuNDEwNSAyLjgwOTA0IDE3LjQ3MjcgMi45NjM5MSAxNy40NzI3IDMuMTI1QzE3LjQ3MjcgMy4yODYwOSAxNy40MTA1IDMuNDQwOTYgMTcuMjk5MiAzLjU1NzM5QzE3LjE4NzkgMy42NzM4MSAxNy4wMzU5IDMuNzQyOCAxNi44NzUgMy43NUMxNi43MDkyIDMuNzUgMTYuNTUwMyAzLjY4NDE1IDE2LjQzMzEgMy41NjY5NEMxNi4zMTU4IDMuNDQ5NzMgMTYuMjUgMy4yOTA3NiAxNi4yNSAzLjEyNUMxNi4yNSAyLjk1OTI0IDE2LjMxNTggMi44MDAyNyAxNi40MzMxIDIuNjgzMDZDMTYuNTUwMyAyLjU2NTg1IDE2LjcwOTIgMi41IDE2Ljg3NSAyLjVaTTguNzUgNy41SDcuNVY4Ljc1SDguNzVWMTEuMjVINy41QzYuNDY2MjUgMTEuMjUgNS42MjUgMTIuMDkxMyA1LjYyNSAxMy4xMjVWMTQuMzc1SDYuODc1VjEzLjEyNUM2Ljg3NSAxMi45NTkyIDYuOTQwODUgMTIuODAwMyA3LjA1ODA2IDEyLjY4MzFDNy4xNzUyNyAxMi41NjU4IDcuMzM0MjQgMTIuNSA3LjUgMTIuNUg4Ljc1VjE1QzguNzUgMTUuNjg5NCA4LjE4OTM3IDE2LjI1IDcuNSAxNi4yNUg2Ljg3NUM0LjY3NSAxNi4yNSAyLjg1NSAxNC42MTY5IDIuNTUgMTIuNUgzLjc1VjExLjI1SDIuNVY4Ljc1SDQuMzc1QzUuNDA4NzUgOC43NSA2LjI1IDcuOTA4NzUgNi4yNSA2Ljg3NVY1LjYyNUg1VjYuODc1QzUgNy4wNDA3NiA0LjkzNDE1IDcuMTk5NzMgNC44MTY5NCA3LjMxNjk0QzQuNjk5NzMgNy40MzQxNSA0LjU0MDc2IDcuNSA0LjM3NSA3LjVIMi41NUMyLjg1NSA1LjM4MzEyIDQuNjc1IDMuNzUgNi44NzUgMy43NUg3LjVDOC4xODkzNyAzLjc1IDguNzUgNC4zMTEyNSA4Ljc1IDVWNy41Wk0xNy41IDE2Ljg3NUMxNy40OTI4IDE3LjAzNTkgMTcuNDIzOCAxNy4xODc5IDE3LjMwNzQgMTcuMjk5MkMxNy4xOTEgMTcuNDEwNSAxNy4wMzYxIDE3LjQ3MjcgMTYuODc1IDE3LjQ3MjdDMTYuNzEzOSAxNy40NzI3IDE2LjU1OSAxNy40MTA1IDE2LjQ0MjYgMTcuMjk5MkMxNi4zMjYyIDE3LjE4NzkgMTYuMjU3MiAxNy4wMzU5IDE2LjI1IDE2Ljg3NUMxNi4yNSAxNi41MzA2IDE2LjUzMDYgMTYuMjUgMTYuODc1IDE2LjI1QzE3LjIxOTQgMTYuMjUgMTcuNSAxNi41MzA2IDE3LjUgMTYuODc1WiIgZmlsbD0iIzBEQTVFOCIvPgo8L3N2Zz4K' };
+    var ICONS = { 'Digital': 'assets/img/icon_001.svg', 'Analog': 'assets/img/icon_002.svg', 'I2c': 'assets/img/icon_003.svg', 'PWM': 'assets/img/icon_004.svg', 'LEDs': 'assets/img/icon_005.svg', 'Tx-Rx': 'assets/img/icon_006.svg', 'SPI': 'assets/img/icon_007.svg', 'Loop': 'assets/img/icon_008.svg', 'Delay': 'assets/img/icon_009.svg', 'Logic': 'assets/img/icon_010.svg', 'Maths': 'assets/img/icon_011.svg', 'A.I. Vision': 'assets/img/icon_012.svg', 'AI blocks': 'assets/img/icon_012.svg', 'Variable': 'assets/img/icon_013.svg', 'Display-3.js': 'assets/img/icon_014.svg', 'List': 'assets/img/icon_015.svg', 'Function': 'assets/img/icon_016.svg', 'default block': 'assets/img/icon_017.svg', 'Llm': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2Ljg3NSAxMS44NzVDMTcuOTA4OCAxMS44NzUgMTguNzUgMTEuMDMzNyAxOC43NSAxMEMxOC43NSA4Ljk2NjI1IDE3LjkwODggOC4xMjUgMTYuODc1IDguMTI1QzE2LjQ4ODUgOC4xMjYxNSAxNi4xMTE4IDguMjQ2OTIgMTUuNzk2NyA4LjQ3MDc0QzE1LjQ4MTUgOC42OTQ1NSAxNS4yNDM0IDkuMDEwNDMgMTUuMTE1IDkuMzc1SDExLjUwODdMMTYuMDcxMyA0LjgxMjVDMTYuMzE2MyA0LjkyOTM3IDE2LjU4NjMgNSAxNi44NzUgNUMxNy45MDg4IDUgMTguNzUgNC4xNTg3NSAxOC43NSAzLjEyNUMxOC43NSAyLjA5MTI1IDE3LjkwODggMS4yNSAxNi44NzUgMS4yNUMxNS44NDEzIDEuMjUgMTUgMi4wOTEyNSAxNSAzLjEyNUMxNSAzLjQxMzc1IDE1LjA3MTIgMy42ODM3NSAxNS4xODc1IDMuOTI4MTJMMTAgOS4xMTYyNVY1QzEwIDQuMzExMjUgMTAuNTYwNiAzLjc1IDExLjI1IDMuNzVIMTIuNVYyLjVIMTEuMjVDMTAuNSAyLjUgOS44MzM3NSAyLjgzOTM4IDkuMzc1IDMuMzYzNzVDOS4xNDI1MiAzLjA5Mzk0IDguODU0ODEgMi44NzcyIDguNTMxMzMgMi43MjgxOEM4LjIwNzg2IDIuNTc5MTcgNy44NTYxNSAyLjUwMTM1IDcuNSAyLjVINi44NzVDMy43NzM3NSAyLjUgMS4yNSA1LjAyMzEzIDEuMjUgOC4xMjVWMTEuODc1QzEuMjUgMTQuOTc2OSAzLjc3Mzc1IDE3LjUgNi44NzUgMTcuNUg3LjVDOC4yNSAxNy41IDguOTE2MjUgMTcuMTYxMyA5LjM3NSAxNi42MzYyQzkuODMzNzUgMTcuMTYxMyAxMC41IDE3LjUgMTEuMjUgMTcuNUgxMi41VjE2LjI1SDExLjI1QzEwLjU2MDYgMTYuMjUgMTAgMTUuNjg5NCAxMCAxNVYxMC44ODM3TDE1LjE4NzUgMTYuMDcxOUMxNS4wNzA2IDE2LjMxNjIgMTUgMTYuNTg2MyAxNSAxNi44NzVDMTUgMTcuOTA5NCAxNS44NDEzIDE4Ljc1IDE2Ljg3NSAxOC43NUMxNy45MDg4IDE4Ljc1IDE4Ljc1IDE3LjkwOTQgMTguNzUgMTYuODc1QzE4Ljc1IDE1Ljg0MDYgMTcuOTA4OCAxNSAxNi44NzUgMTVDMTYuNTk2NSAxNS4wMDE1IDE2LjMyMiAxNS4wNjU4IDE2LjA3MTkgMTUuMTg4MUwxMS41MDg3IDEwLjYyNTZIMTUuMTE1QzE1LjI0MzUgMTAuOTkwMSAxNS40ODE3IDExLjMwNTggMTUuNzk2OCAxMS41Mjk1QzE2LjExMTkgMTEuNzUzMiAxNi40ODg2IDExLjg3MzkgMTYuODc1IDExLjg3NVpNMTYuODc1IDkuMzc1QzE3LjA0MDggOS4zNzUgMTcuMTk5NyA5LjQ0MDg1IDE3LjMxNjkgOS41NTgwNkMxNy40MzQyIDkuNjc1MjcgMTcuNSA5LjgzNDI0IDE3LjUgMTBDMTcuNSAxMC4xNjU4IDE3LjQzNDIgMTAuMzI0NyAxNy4zMTY5IDEwLjQ0MTlDMTcuMTk5NyAxMC41NTkyIDE3LjA0MDggMTAuNjI1IDE2Ljg3NSAxMC42MjVDMTYuNzA5MiAxMC42MjUgMTYuNTUwMyAxMC41NTkyIDE2LjQzMzEgMTAuNDQxOUMxNi4zMTU4IDEwLjMyNDcgMTYuMjUgMTAuMTY1OCAxNi4yNSAxMEMxNi4yNSA5LjgzNDI0IDE2LjMxNTggOS42NzUyNyAxNi40MzMxIDkuNTU4MDZDMTYuNTUwMyA5LjQ0MDg1IDE2LjcwOTIgOS4zNzUgMTYuODc1IDkuMzc1Wk0xNi44NzUgMi41QzE3LjAzNTkgMi41MDcyIDE3LjE4NzkgMi41NzYxOSAxNy4yOTkyIDIuNjkyNjFDMTcuNDEwNSAyLjgwOTA0IDE3LjQ3MjcgMi45NjM5MSAxNy40NzI3IDMuMTI1QzE3LjQ3MjcgMy4yODYwOSAxNy40MTA1IDMuNDQwOTYgMTcuMjk5MiAzLjU1NzM5QzE3LjE4NzkgMy42NzM4MSAxNy4wMzU5IDMuNzQyOCAxNi44NzUgMy43NUMxNi43MDkyIDMuNzUgMTYuNTUwMyAzLjY4NDE1IDE2LjQzMzEgMy41NjY5NEMxNi4zMTU4IDMuNDQ5NzMgMTYuMjUgMy4yOTA3NiAxNi4yNSAzLjEyNUMxNi4yNSAyLjk1OTI0IDE2LjMxNTggMi44MDAyNyAxNi40MzMxIDIuNjgzMDZDMTYuNTUwMyAyLjU2NTg1IDE2LjcwOTIgMi41IDE2Ljg3NSAyLjVaTTguNzUgNy41SDcuNVY4Ljc1SDguNzVWMTEuMjVINy41QzYuNDY2MjUgMTEuMjUgNS42MjUgMTIuMDkxMyA1LjYyNSAxMy4xMjVWMTQuMzc1SDYuODc1VjEzLjEyNUM2Ljg3NSAxMi45NTkyIDYuOTQwODUgMTIuODAwMyA3LjA1ODA2IDEyLjY4MzFDNy4xNzUyNyAxMi41NjU4IDcuMzM0MjQgMTIuNSA3LjUgMTIuNUg4Ljc1VjE1QzguNzUgMTUuNjg5NCA4LjE4OTM3IDE2LjI1IDcuNSAxNi4yNUg2Ljg3NUM0LjY3NSAxNi4yNSAyLjg1NSAxNC42MTY5IDIuNTUgMTIuNUgzLjc1VjExLjI1SDIuNVY4Ljc1SDQuMzc1QzUuNDA4NzUgOC43NSA2LjI1IDcuOTA4NzUgNi4yNSA2Ljg3NVY1LjYyNUg1VjYuODc1QzUgNy4wNDA3NiA0LjkzNDE1IDcuMTk5NzMgNC44MTY5NCA3LjMxNjk0QzQuNjk5NzMgNy40MzQxNSA0LjU0MDc2IDcuNSA0LjM3NSA3LjVIMi41NUMyLjg1NSA1LjM4MzEyIDQuNjc1IDMuNzUgNi44NzUgMy43NUg3LjVDOC4xODkzNyAzLjc1IDguNzUgNC4zMTEyNSA4Ljc1IDVWNy41Wk0xNy41IDE2Ljg3NUMxNy40OTI4IDE3LjAzNTkgMTcuNDIzOCAxNy4xODc5IDE3LjMwNzQgMTcuMjk5MkMxNy4xOTEgMTcuNDEwNSAxNy4wMzYxIDE3LjQ3MjcgMTYuODc1IDE3LjQ3MjdDMTYuNzEzOSAxNy40NzI3IDE2LjU1OSAxNy40MTA1IDE2LjQ0MjYgMTcuMjk5MkMxNi4zMjYyIDE3LjE4NzkgMTYuMjU3MiAxNy4wMzU5IDE2LjI1IDE2Ljg3NUMxNi4yNSAxNi41MzA2IDE2LjUzMDYgMTYuMjUgMTYuODc1IDE2LjI1QzE3LjIxOTQgMTYuMjUgMTcuNSAxNi41MzA2IDE3LjUgMTYuODc1WiIgZmlsbD0iIzBEQTVFOCIvPgo8L3N2Zz4K' };
     window.SMALL_ICONS = {
       'Digital': 'assets/img/icon_018.svg',
       'Analog': 'assets/img/icon_019.svg',
@@ -5382,7 +5139,7 @@ async function start() {
       'Function': 'assets/img/icon_031.svg',
       'List': 'assets/img/icon_032.svg',
       'Display-3.js': 'assets/img/icon_033.svg',
-      'Display-lotte': 'assets/img/icon_033.svg',
+
       'default block': 'assets/img/icon_034.svg',
       'A.I. Vision': 'assets/img/icon_029.svg',
       'A.I. Pose': 'assets/img/icon_033.svg',
@@ -6495,6 +6252,7 @@ async function start() {
     btn.className = 'toolbox-toggle-btn';
     btn.innerHTML = '<img src="icons/slider.svg" style="width: 36px; height: 36px; transform: scaleX(-1);" alt="Toggle" />';
     btn.title = 'Collapse Toolbox';
+    btn.style.visibility = 'hidden';
     document.body.appendChild(btn);
 
     // Icon-only panel — sits over Blockly area, no animation
@@ -6590,6 +6348,7 @@ async function start() {
           btn.style.left = (bdLeft + 193) + 'px';
           btn.style.top = (bdLeft + 73) + '%';
         }
+        btn.style.visibility = 'visible';
       } catch (_) { setTimeout(updateBtnPos, 300); }
     }
 
@@ -7627,9 +7386,7 @@ async function start() {
   document.getElementById('btnSave').onclick = async () => {
     const code = pyGen.workspaceToCode(workspace);
     if (!code.trim()) { alert("No code to save"); return; }
-    // v12: JSON serialization replaces deprecated Blockly.Xml.domToPrettyText()
-    const state = Blockly.serialization.workspaces.save(workspace);
-    const data = JSON.stringify(state, null, 2);
+    const data = JSON.stringify(prepareSaveData(), null, 2);
 
     if (isMobileApp()) {
       window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -7663,15 +7420,32 @@ async function start() {
     inp.click();
   };
 
-  // v12: loadXml now handles both new JSON format and legacy XML files
   function loadXml(text) {
     if (!text) return;
     workspace.clear();
+    resetToolboxAndAIClasses();
     const trimmed = text.trim();
     try {
       if (trimmed.startsWith('{')) {
         // v12 JSON format
-        Blockly.serialization.workspaces.load(JSON.parse(trimmed), workspace);
+        const parsed = JSON.parse(trimmed);
+        if (parsed && parsed.workspaceState) {
+          if (parsed.aiTrainedClasses) {
+            applyAIClasses(parsed.aiTrainedClasses);
+            try { sessionStorage.setItem('curio_ai_trained', JSON.stringify(parsed.aiTrainedClasses)); } catch (e) {}
+          }
+          if (parsed.voiceTrainedClasses) {
+            applyVoiceClasses(parsed.voiceTrainedClasses);
+            try { sessionStorage.setItem('curio_voice_trained', JSON.stringify(parsed.voiceTrainedClasses)); } catch (e) {}
+          }
+          if (parsed.poseTrainedClasses) {
+            applyPoseClasses(parsed.poseTrainedClasses);
+            try { sessionStorage.setItem('curio_pose_trained', JSON.stringify(parsed.poseTrainedClasses)); } catch (e) {}
+          }
+          Blockly.serialization.workspaces.load(parsed.workspaceState, workspace);
+        } else {
+          Blockly.serialization.workspaces.load(parsed, workspace);
+        }
       } else if (trimmed.startsWith('<')) {
         // Legacy XML format — backward compatibility
         Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(trimmed), workspace);
@@ -7854,9 +7628,7 @@ async function start() {
     autoSave: () => {
       try {
         const name = document.getElementById('projectNameInput').value.trim() || 'Untitled';
-        // v12: JSON serialization replaces deprecated Blockly.Xml.domToText()
-        const state = Blockly.serialization.workspaces.save(workspace);
-        StorageLayer.saveLocal(name, JSON.stringify(state));
+        StorageLayer.saveLocal(name, JSON.stringify(prepareSaveData()));
       } catch (e) { console.warn('Auto-save failed:', e); }
     },
 
@@ -7874,6 +7646,7 @@ async function start() {
       }
 
       workspace.clear();
+      resetToolboxAndAIClasses();
       document.getElementById('projectNameInput').value = newName;
 
       // v12: load default start block via JSON serialization API
@@ -7893,9 +7666,7 @@ async function start() {
     },
 
     saveProject: () => {
-      // v12: JSON serialization replaces deprecated Blockly.Xml.domToText()
-      const state = Blockly.serialization.workspaces.save(workspace);
-      const data = JSON.stringify(state);
+      const data = JSON.stringify(prepareSaveData());
       const name = document.getElementById('projectNameInput').value.trim() || "Untitled";
 
       if (StorageLayer.saveLocal(name, data)) {
@@ -7974,6 +7745,7 @@ async function start() {
         if (!confirm(`Delete the active project "${name}"? This will clear the workspace.`)) return;
         StorageLayer.deleteLocal(name);
         workspace.clear();
+        resetToolboxAndAIClasses();
         document.getElementById('projectNameInput').value = 'Untitled';
         // v12: JSON serialization replaces deprecated Blockly.Xml.domToWorkspace()
         Blockly.serialization.workspaces.load({
@@ -8005,9 +7777,7 @@ async function start() {
     },
 
     downloadXml: () => {
-      // v12: export as JSON (replaces deprecated Blockly.Xml.domToPrettyText)
-      const state = Blockly.serialization.workspaces.save(workspace);
-      const data = JSON.stringify(state, null, 2);
+      const data = JSON.stringify(prepareSaveData(), null, 2);
       const name = document.getElementById('projectNameInput').value.trim() || "Untitled";
 
       if (isMobileApp()) {
@@ -8075,11 +7845,29 @@ async function start() {
     loadContent: (text) => {
       if (!text) return;
       workspace.clear();
+      resetToolboxAndAIClasses();
       try {
         const trimmed = text.trim();
         if (trimmed.startsWith('{')) {
           // v12 JSON format — new serialization API
-          Blockly.serialization.workspaces.load(JSON.parse(trimmed), workspace);
+          const parsed = JSON.parse(trimmed);
+          if (parsed && parsed.workspaceState) {
+            if (parsed.aiTrainedClasses) {
+              applyAIClasses(parsed.aiTrainedClasses);
+              try { sessionStorage.setItem('curio_ai_trained', JSON.stringify(parsed.aiTrainedClasses)); } catch (e) {}
+            }
+            if (parsed.voiceTrainedClasses) {
+              applyVoiceClasses(parsed.voiceTrainedClasses);
+              try { sessionStorage.setItem('curio_voice_trained', JSON.stringify(parsed.voiceTrainedClasses)); } catch (e) {}
+            }
+            if (parsed.poseTrainedClasses) {
+              applyPoseClasses(parsed.poseTrainedClasses);
+              try { sessionStorage.setItem('curio_pose_trained', JSON.stringify(parsed.poseTrainedClasses)); } catch (e) {}
+            }
+            Blockly.serialization.workspaces.load(parsed.workspaceState, workspace);
+          } else {
+            Blockly.serialization.workspaces.load(parsed, workspace);
+          }
         } else if (trimmed.startsWith('<')) {
           // Legacy XML format (v10 files) — backward compatibility
           Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(trimmed), workspace);
@@ -8103,6 +7891,7 @@ async function start() {
   // CLEAR
   document.getElementById('btnClear').onclick = () => {
     workspace.clear();
+    resetToolboxAndAIClasses();
     Blockly.serialization.workspaces.load({
       blocks: {
         languageVersion: 0,
