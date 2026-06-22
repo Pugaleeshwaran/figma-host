@@ -23,31 +23,35 @@
   </script>
   <title>rndmfg — Blockly (Python generator)</title>
 
-  <link rel="stylesheet" href="offline_libs/font-awesome/css/brands.min.css" />
-  <link rel="stylesheet" href="offline_libs/font-awesome/css/all.min.css" />
+  <!-- Inter font — preconnect speeds up the DNS lookup -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 
-  <script src="offline_libs/mqtt.min.js"></script>
+  <!-- Font Awesome — loaded non-blocking so it never delays first paint -->
+  <link rel="stylesheet" href="offline_libs/font-awesome/css/brands.min.css" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="offline_libs/font-awesome/css/all.min.css" media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet" href="offline_libs/font-awesome/css/brands.min.css" />
+    <link rel="stylesheet" href="offline_libs/font-awesome/css/all.min.css" />
+  </noscript>
 
-  <!-- Three.js for 3D Model Viewer Block Popup -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="offline_libs/mqtt.min.js" defer></script>
+
+  <!-- Three.js for 3D Model Viewer Block Popup (served locally) -->
+  <script src="offline_libs/three/three.min.js" defer></script>
+  <script src="offline_libs/three/GLTFLoader.js" defer></script>
+  <script src="offline_libs/three/DRACOLoader.js" defer></script>
 
 
   <!-- ═══════════════════════════════════════════════════════════
        Blockly v12.5.1 — loaded locally from offline_libs/blockly/
        Order is critical: core → blocks → generator → messages
        ═══════════════════════════════════════════════════════════ -->
-  <script src="offline_libs/blockly/blockly_compressed.js"></script>
-  <script src="offline_libs/blockly/blocks_compressed.js"></script>
-  <script src="offline_libs/blockly/python_compressed.js"></script>
-  <script src="offline_libs/blockly/msg/en.js"></script>
-  <script>    // v12 exposes the Python generator as `python.pythonGenerator`.
-    // This alias keeps all existing Blockly.Python.xxx calls working.
-    if (typeof python !== 'undefined' && python.pythonGenerator) {
-      Blockly.Python = python.pythonGenerator;
-    }
-  </script>
+  <script src="offline_libs/blockly/blockly_compressed.js" defer></script>
+  <script src="offline_libs/blockly/blocks_compressed.js" defer></script>
+  <script src="offline_libs/blockly/python_compressed.js" defer></script>
+  <script src="offline_libs/blockly/msg/en.js" defer></script>
+  <!-- Blockly.Python alias is set at top of block_02.js after deferred scripts load -->
 
 
   <link rel="stylesheet" href="css/main.css" />
@@ -375,19 +379,46 @@
 
           <!-- ─── PANE 2: Terminal ─── -->
           <div class="cp-pane" id="pane-terminal">
-            <!-- Terminal top bar -->
-            <div class="cp-terminal-topbar">
-              <span class="cp-terminal-label">TERMINAL</span>
-              <div class="cp-terminal-actions">
-                <button class="cp-terminal-clear-btn" onclick="rdClear()">✕ Clear</button>
+            <div class="term-card-container">
+              
+              <!-- SENSORS CARD -->
+              <div class="term-card card-sensors">
+                <div class="term-card-header">Sensors</div>
+                <div class="term-card-body" id="term-sensors-body">
+                  <div class="term-empty-state">
+                    <div class="term-empty-icon"><i class="fa-solid fa-wifi"></i></div>
+                    <div class="term-empty-text">No Sensor added</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <!-- Terminal body: legacy rd-wrapper kept for JS compat -->
-            <div class="rd-wrapper">
-              <button id="rd-clear-btn" onclick="rdClear()" style="display:none">✕ Clear</button>
-              <div id="responseDisplay"></div>
+
+              <!-- VARIABLES CARD -->
+              <div class="term-card card-variables">
+                <div class="term-card-header">Variables</div>
+                <div class="term-card-body" id="term-variables-body">
+                  <div class="term-empty-state">
+                    <div class="term-empty-icon"><span>{x}</span></div>
+                    <div class="term-empty-text">No Variable added</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- OUTPUT CARD -->
+              <div class="term-card card-output">
+                <div class="term-card-header">
+                  <span>OUTPUT</span>
+                  <button class="term-clear-btn" onclick="rdClear()">✕ Clear</button>
+                </div>
+                <div class="term-card-body">
+                  <div class="rd-wrapper">
+                    <div id="responseDisplay"></div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
+
 
           <!-- ─── PANE 3: AI Chat ─── -->
           <div class="cp-pane" id="pane-ai">
@@ -588,7 +619,7 @@
        Dynamic categories: ⭐ RECENT_BLOCKS  ❤️ FAVORITE_BLOCKS  SEARCH_CATEGORY
        Every category has a unique id so getToolboxItemById() works.
        ═══════════════════════════════════════════════════════════════ -->
-  <script src="js/block_01.js"></script>
+  <script src="js/block_01.js" defer></script>
 
   <!-- Toolbox XML kept as data source for search index -->
   <!-- Toolbox XML kept as data source for search index -->
@@ -1729,7 +1760,7 @@
     </div>
   </div>
 
-  <script src="js/block_02.js"></script>
+  <script src="js/block_02.js" defer></script>
   <div id="liveModeToast" class="live-toast"></div>
 
   <!-- Hide Scrollbar CSS -->
@@ -1744,7 +1775,7 @@
 
 
   <!-- Flyout Alignment Patch -->
-  <script src="js/block_03.js?v=2"></script>
+  <script src="js/block_03.js?v=2" defer></script>
 
 
   <!-- FORCE HIDE SVG SCROLLBAR -->
@@ -1755,9 +1786,9 @@
   <!-- ══ DEVICES PANEL CSS ══ -->
 
   <!-- ══ DEVICES PANEL JS ══ -->
-  <script src="js/block_04.js"></script>
+  <script src="js/block_04.js" defer></script>
 
-  <script src="js/block_05.js?v=6"></script>
+  <script src="js/block_05.js?v=6" defer></script>
 
 </body>
 

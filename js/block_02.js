@@ -1,6 +1,510 @@
+// v12: set Blockly.Python alias (runs after python_compressed.js in deferred order)
+if (typeof python !== 'undefined' && python.pythonGenerator) {
+  Blockly.Python = python.pythonGenerator;
+}
+
 let workspace = null;
 let pyGen = null; // v12: set after Blockly loads
 let defaultToolboxConfig = null;
+
+// =====================================================================
+// REDESIGNED TERMINAL PANELS STATE & LOGIC
+// =====================================================================
+let activeSensorFilter = null;
+let varToSensorMap = {};
+let printOutputToSensorMap = {};
+let directlyPrintedVars = {};
+let lastStringMessage = "";
+const variableValues = {};
+
+const SENSOR_NAME_MAP = {
+  'tep_ana': 'Temperature',
+  'ana_temp': 'Temperature',
+  'din_temp': 'Temperature',
+  'temp_sensor': 'Temperature',
+  'sen_temp': 'Temperature',
+  'IR-Temp': 'Temperature',
+  'ir_temp': 'Temperature',
+  'temp2-sensor': 'Temperature',
+  'tem_sensor': 'Temperature',
+  'humidity': 'Humidity',
+  'soil_moisture': 'Soil Moisture',
+  'dust': 'Dust',
+  'Air_quality_sensor': 'Air Quality',
+  'water_sensor': 'Water Sensor',
+  'water-turbidity-sensor': 'Turbidity',
+  'TDS_Water_sensor': 'Water TDS',
+  'pressure': 'Pressure',
+  'din_motion': 'Motion',
+  'motion': 'Motion',
+  'din_proximity': 'Proximity',
+  'din_tilt': 'Tilt',
+  'din_ultra': 'Ultrasonic',
+  'din_ultra_range': 'Ultrasonic',
+  'sen_ultrasonic': 'Ultrasonic',
+  'accelerometer_sensor': 'Accelerometer',
+  'accelerometer': 'Accelerometer',
+  'compass': 'Compass',
+  'mag_encoder': 'Encoder',
+  'gusture': 'Gesture',
+  'flex-sensor': 'Flex Sensor',
+  'shock_sensor': 'Shock Sensor',
+  'vibration-switch-sensor': 'Vibration',
+  'joystick_move': 'Joystick',
+  'ldr': 'Light (LDR)',
+  'din_ir': 'Infrared',
+  'ir_sen': 'Infrared',
+  'colour_sen': 'Color Sensor',
+  'ambient-sen': 'Ambient Light',
+  'uv_sensor': 'UV Sensor',
+  'light_freq': 'Light Freq',
+  'magnetic_sensor': 'Magnetic Sensor',
+  'heart_beat': 'Heart Beat',
+  'ecg': 'ECG Sensor',
+  'max': 'MAX Sensor',
+  'din_flame': 'Flame Sensor',
+  'flame': 'Flame Sensor',
+  'din_door': 'Door Sensor',
+  'din_sound': 'Sound Sensor',
+  'sound': 'Sound Sensor',
+  'din_button': 'Button',
+  'button': 'Button',
+  'touch_sensor': 'Touch Sensor',
+  'finger_print_enroll': 'Fingerprint',
+  'finger_print_match': 'Fingerprint',
+  'Current-sensor': 'Current',
+  'voltage_sensor': 'Voltage',
+  'load_cell': 'Load Cell',
+  'flexi_force_sensor': 'Flexi Force',
+  'piezo_sensor': 'Piezo',
+  'rtc_sensor': 'RTC Clock',
+  'rfid': 'RFID',
+  'nfc_reader': 'NFC Reader',
+  'rc_sensor': 'RC Sensor',
+  'xray_sensor': 'X-Ray',
+  'sensor': 'Generic Sensor'
+};
+
+function getSensorColor(name) {
+  const colors = {
+    'Temperature': '#EF4444',
+    'Humidity': '#10B981',
+    'Soil Moisture': '#8B5CF6',
+    'Dust': '#6B7280',
+    'Air Quality': '#14B8A6',
+    'Water Sensor': '#3B82F6',
+    'Turbidity': '#F59E0B',
+    'Water TDS': '#06B6D4',
+    'Pressure': '#EC4899',
+    'Motion': '#F97316',
+    'Proximity': '#84CC16',
+    'Tilt': '#6366F1',
+    'Ultrasonic': '#3B82F6',
+    'Accelerometer': '#8B5CF6',
+    'Compass': '#EAB308',
+    'Encoder': '#D946EF',
+    'Gesture': '#A855F7',
+    'Flex Sensor': '#F43F5E',
+    'Shock Sensor': '#10B981',
+    'Vibration': '#F97316',
+    'Joystick': '#3B82F6',
+    'Light (LDR)': '#EAB308',
+    'Infrared': '#EF4444',
+    'Color Sensor': '#D946EF',
+    'Ambient Light': '#EAB308',
+    'UV Sensor': '#A855F7',
+    'Light Freq': '#EAB308',
+    'Magnetic Sensor': '#6366F1',
+    'Heart Beat': '#EF4444',
+    'ECG Sensor': '#EF4444',
+    'MAX Sensor': '#EF4444',
+    'Flame Sensor': '#F97316',
+    'Door Sensor': '#10B981',
+    'Sound Sensor': '#3B82F6',
+    'Button': '#EC4899',
+    'Touch Sensor': '#84CC16',
+    'Fingerprint': '#6B7280',
+    'Current': '#F59E0B',
+    'Voltage': '#F59E0B',
+    'Load Cell': '#6B7280',
+    'Flexi Force': '#F43F5E',
+    'Piezo': '#14B8A6',
+    'RTC Clock': '#6366F1',
+    'RFID': '#D946EF',
+    'NFC Reader': '#D946EF',
+    'RC Sensor': '#06B6D4',
+    'X-Ray': '#6B7280',
+    'Generic Sensor': '#10B981'
+  };
+  return colors[name] || '#3D5AE0';
+}
+
+function isSensorTypeMatch(rawType, displayName) {
+  if (!rawType || !displayName) return false;
+  // Normalize both by lowercasing and stripping underscores & spaces
+  const rt = rawType.toLowerCase().replace(/[_\s]/g, '').trim();
+  const dn = displayName.toLowerCase().replace(/[_\s]/g, '').trim();
+  
+  if (rt === dn) return true;
+
+  // Custom normalized synonym mappings
+  const synonyms = {
+    'temp': ['temperature', 'tempsensor', 'temsensor'],
+    'temperature': ['temp', 'tem'],
+    'ultra': ['ultrasonic', 'ultrarange', 'dist'],
+    'ultrasonic': ['ultra', 'dist'],
+    'ir': ['infrared', 'irsen', 'irtemp'],
+    'infrared': ['ir'],
+    'button': ['btn', 'button'],
+    'btn': ['button'],
+    'air': ['airquality', 'airqualitysensor', 'gas'],
+    'gas': ['airquality', 'air'],
+    'soil': ['soilmoisture'],
+    'soilmoisture': ['soil'],
+    'light': ['ldr', 'ambientlight'],
+    'ldr': ['light', 'ambientlight']
+  };
+  
+  // Exact synonym check
+  if (synonyms[rt] && synonyms[rt].includes(dn)) return true;
+  if (synonyms[dn] && synonyms[dn].includes(rt)) return true;
+
+  // Prefix checks for common sensors to prevent loose suffix matches (e.g. "air" matches "ir")
+  if (dn === 'infrared') {
+    if (rt.startsWith('ir') && !rt.startsWith('air')) return true;
+  }
+  if (dn === 'airquality') {
+    if (rt.startsWith('air') || rt.startsWith('gas')) return true;
+  }
+  if (dn === 'ultrasonic') {
+    if (rt.startsWith('ultra') || rt.startsWith('dist')) return true;
+  }
+  if (dn === 'temperature') {
+    if (rt.startsWith('temp') || rt.startsWith('tem')) return true;
+  }
+  if (dn === 'button') {
+    if (rt.startsWith('btn') || rt.startsWith('button')) return true;
+  }
+
+  // Fallback prefix checks only if at least 4 characters long to avoid false matches
+  if (rt.length >= 4 && dn.startsWith(rt)) return true;
+  if (dn.length >= 4 && rt.startsWith(dn)) return true;
+
+  if (synonyms[rt]) {
+    for (const syn of synonyms[rt]) {
+      if (syn === dn || (syn.length >= 4 && dn.startsWith(syn)) || (dn.length >= 4 && syn.startsWith(dn))) return true;
+    }
+  }
+  if (synonyms[dn]) {
+    for (const syn of synonyms[dn]) {
+      if (syn === rt || (syn.length >= 4 && rt.startsWith(syn)) || (rt.length >= 4 && syn.startsWith(rt))) return true;
+    }
+  }
+  
+  return false;
+}
+
+function getBestSensorForText(text) {
+  if (!text) return null;
+  const rawText = text.toLowerCase().trim();
+  
+  // Sort print keys by length descending to check the most specific first
+  const keys = Object.keys(printOutputToSensorMap).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (rawText.includes(key)) {
+      return printOutputToSensorMap[key];
+    }
+  }
+  return null;
+}
+
+function isLineMatchingFilter(rowOrText, filterName) {
+  if (!filterName) return true;
+  const filterWord = filterName.toLowerCase();
+  
+  if (rowOrText && typeof rowOrText === 'object' && rowOrText.getAttribute) {
+    const sensorAttr = rowOrText.getAttribute('data-sensor');
+    if (sensorAttr) {
+      return sensorAttr.toLowerCase() === filterWord;
+    }
+    // Fallback if data-sensor is missing
+    const msgEl = rowOrText.querySelector('.rd-msg');
+    const text = msgEl ? msgEl.textContent : rowOrText.textContent || '';
+    return isTextMatchingFilter(text, filterName);
+  }
+  
+  return isTextMatchingFilter(rowOrText, filterName);
+}
+
+function isTextMatchingFilter(text, filterName) {
+  if (!filterName) return true;
+  const filterWord = filterName.toLowerCase();
+  const rawText = text.toLowerCase().trim();
+  
+  // 1. Direct match checks
+  if (rawText.includes(filterWord)) return true;
+  if (isSensorTypeMatch(rawText, filterName)) return true;
+  
+  // If the rawText matches a DIFFERENT active sensor in the workspace, hide it from this filter
+  for (const varName in varToSensorMap) {
+    const associatedSensor = varToSensorMap[varName];
+    if (isSensorTypeMatch(rawText, associatedSensor)) {
+      return false;
+    }
+  }
+  
+  // 2. Map print string checks using the longest specific matching key
+  const bestSensor = getBestSensorForText(rawText);
+  if (bestSensor) {
+    return bestSensor.toLowerCase() === filterWord;
+  }
+  
+  // 3. Label/Assignment log checks (e.g. "distance: 12.5", "temp = 24.5")
+  const assignmentRegexes = [
+    /([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([0-9.-]+)/g,
+    /([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([0-9.-]+)/g,
+    /([a-zA-Z_][a-zA-Z0-9_]*)\s+([0-9.-]+)/g
+  ];
+  for (const regex of assignmentRegexes) {
+    let match;
+    regex.lastIndex = 0;
+    if ((match = regex.exec(rawText)) !== null) {
+      const label = match[1];
+      
+      // If the label matches the filter word (or its synonym), show it
+      if (isSensorTypeMatch(label, filterName)) {
+        return true;
+      }
+      
+      // If the label matches a DIFFERENT active sensor in the workspace, hide it from this filter
+      for (const varName in varToSensorMap) {
+        const associatedSensor = varToSensorMap[varName];
+        if (isSensorTypeMatch(label, associatedSensor)) {
+          return false;
+        }
+      }
+    }
+  }
+  
+  // 4. Fallback Heuristics for raw numbers
+  const numericValue = parseFloat(text.replace(/[^\d.-]/g, '').trim());
+  if (!isNaN(numericValue) && isFinite(numericValue)) {
+    // If the workspace has directly printed variables, check if their sensor fits the filter
+    let hasMatchingDirectPrint = false;
+    let anyDirectPrint = false;
+    for (const varName in directlyPrintedVars) {
+      anyDirectPrint = true;
+      const sensorDisplay = varToSensorMap[varName];
+      if (sensorDisplay && sensorDisplay.toLowerCase() === filterWord) {
+        hasMatchingDirectPrint = true;
+      }
+    }
+    if (anyDirectPrint) {
+      return hasMatchingDirectPrint;
+    }
+    
+    // Otherwise fall back to typical numeric ranges
+    if (filterWord === 'temperature') {
+      return (numericValue > -20 && numericValue < 100);
+    }
+    if (filterWord === 'ultrasonic') {
+      return (numericValue >= 0 && numericValue < 400);
+    }
+  }
+  
+  return false;
+}
+
+function toggleSensorFilter(sensorName) {
+  if (activeSensorFilter === sensorName) {
+    activeSensorFilter = null;
+  } else {
+    activeSensorFilter = sensorName;
+  }
+  updateSensorsAndVariablesUI();
+  
+  // Re-apply filter to already logged lines in #responseDisplay
+  const lines = document.querySelectorAll('#responseDisplay .rd-line');
+  lines.forEach(line => {
+    if (isLineMatchingFilter(line, activeSensorFilter)) {
+      line.classList.remove('line-hidden');
+    } else {
+      line.classList.add('line-hidden');
+    }
+  });
+}
+
+function updateSensorsAndVariablesUI() {
+  if (typeof workspace === 'undefined' || !workspace) return;
+
+  // Re-initialize mappings
+  varToSensorMap = {};
+  printOutputToSensorMap = {};
+  directlyPrintedVars = {};
+
+  const blocks = workspace.getAllBlocks(false);
+
+  // 1. Map variables to sensors
+  blocks.forEach(block => {
+    if (block.type === 'variables_set') {
+      const varId = block.getFieldValue('VAR');
+      const varModel = workspace.getVariableById(varId);
+      if (varModel) {
+        const varName = varModel.name;
+        const targetBlock = block.getInputTargetBlock('VALUE');
+        if (targetBlock) {
+          // Check targetBlock and all its descendants
+          const descendants = targetBlock.getDescendants(false);
+          for (const d of descendants) {
+            if (SENSOR_NAME_MAP[d.type]) {
+              varToSensorMap[varName] = SENSOR_NAME_MAP[d.type];
+              break;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 2. Map print string literals to sensors and detect directly printed variables
+  blocks.forEach(block => {
+    if (block.type === 'text_print' || block.type === 'text_speech' || block.type === 'text_print_basic' || block.type === 'lp_label' || block.type === 'LCD_print') {
+      const inputName = block.type === 'lp_label' ? 'NAME' : (block.getInput('TEXT') ? 'TEXT' : 'VALUE');
+      const valueBlock = block.getInputTargetBlock(inputName);
+      if (valueBlock) {
+        // Collect directly printed variables from descendants
+        valueBlock.getDescendants(false).forEach(d => {
+          if (d.type === 'variables_get') {
+            const varId = d.getFieldValue('VAR');
+            const varModel = workspace.getVariableById(varId);
+            if (varModel) {
+              directlyPrintedVars[varModel.name] = true;
+            }
+          }
+        });
+
+        // Also check if any_input_block refers directly to a variable name (like printing variable temp)
+        if (valueBlock.type === 'any_input_block') {
+          let literalVal = valueBlock.getFieldValue('ANY');
+          if (literalVal) {
+            literalVal = literalVal.replace(/^["']|["']$/g, '').trim();
+            const allVars = workspace.getAllVariables();
+            if (allVars.some(v => v.name === literalVal)) {
+              directlyPrintedVars[literalVal] = true;
+            }
+          }
+        }
+
+        if (valueBlock.type === 'text' || valueBlock.type === 'any_input_block') {
+          const fieldName = valueBlock.type === 'any_input_block' ? 'ANY' : 'TEXT';
+          let textValue = valueBlock.getFieldValue(fieldName);
+          if (textValue) {
+            // Strip quotes if present
+            textValue = textValue.replace(/^["']|["']$/g, '').toLowerCase().trim();
+            
+            // Find parent IF block to associate with a sensor variable
+            let parent = block.getParent();
+            let associatedSensor = null;
+            while (parent) {
+              if (parent.type === 'controls_if' || parent.type === 'din_if_else' || parent.type === 'custom_if_then') {
+                const checkCondition = (inputName) => {
+                  const condBlock = parent.getInputTargetBlock(inputName);
+                  if (condBlock) {
+                    condBlock.getDescendants(false).forEach(d => {
+                      if (d.type === 'variables_get') {
+                        const varId = d.getFieldValue('VAR');
+                        const varModel = workspace.getVariableById(varId);
+                        if (varModel && varToSensorMap[varModel.name]) {
+                          associatedSensor = varToSensorMap[varModel.name];
+                        }
+                      } else if (SENSOR_NAME_MAP[d.type]) {
+                        associatedSensor = SENSOR_NAME_MAP[d.type];
+                      }
+                    });
+                  }
+                };
+                checkCondition('IF0');
+                checkCondition('IF1');
+                checkCondition('IF2');
+                checkCondition('COND'); // 'COND' is used by din_if_else
+                checkCondition('CONDITION');
+              }
+              parent = parent.getParent();
+            }
+            if (associatedSensor) {
+              printOutputToSensorMap[textValue] = associatedSensor;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Pre-seed common default heuristics for prints
+  if (!printOutputToSensorMap['pressed']) printOutputToSensorMap['pressed'] = 'Button';
+  if (!printOutputToSensorMap['not pressed']) printOutputToSensorMap['not pressed'] = 'Button';
+  if (!printOutputToSensorMap['detected']) printOutputToSensorMap['detected'] = 'Infrared';
+  if (!printOutputToSensorMap['not detected']) printOutputToSensorMap['not detected'] = 'Infrared';
+  if (!printOutputToSensorMap['person detected']) printOutputToSensorMap['person detected'] = 'Ultrasonic';
+  if (!printOutputToSensorMap['no person detected']) printOutputToSensorMap['no person detected'] = 'Ultrasonic';
+  if (!printOutputToSensorMap['gas detected']) printOutputToSensorMap['gas detected'] = 'Air Quality';
+  if (!printOutputToSensorMap['normal']) printOutputToSensorMap['normal'] = 'Air Quality';
+
+  // 3. SENSORS CARD RENDER
+  const sensorContainer = document.getElementById('term-sensors-body');
+  if (sensorContainer) {
+    const uniqueSensors = new Set();
+    blocks.forEach(b => {
+      if (SENSOR_NAME_MAP[b.type]) {
+        uniqueSensors.add(SENSOR_NAME_MAP[b.type]);
+      }
+    });
+
+    if (uniqueSensors.size > 0) {
+      let html = '<div class="sensor-pills-list">';
+      uniqueSensors.forEach(name => {
+        const isActive = activeSensorFilter === name;
+        const color = getSensorColor(name);
+        html += '<button class="sensor-pill ' + (isActive ? 'active' : '') + '" onclick="toggleSensorFilter(\'' + name + '\')">' +
+                '<span class="sensor-pill-dot" style="background:' + color + '; box-shadow: 0 0 4px ' + color + '"></span>' +
+                name + '</button>';
+      });
+      html += '</div>';
+      sensorContainer.innerHTML = html;
+    } else {
+      sensorContainer.innerHTML = 
+        '<div class="term-empty-state">' +
+        '  <div class="term-empty-icon"><i class="fa-solid fa-wifi"></i></div>' +
+        '  <div class="term-empty-text">No Sensor added</div>' +
+        '</div>';
+    }
+  }
+
+  // 4. VARIABLES CARD RENDER
+  const variableContainer = document.getElementById('term-variables-body');
+  if (variableContainer) {
+    const variables = workspace.getAllVariables();
+    if (variables.length > 0) {
+      let html = '<div class="variable-rows-list">';
+      variables.forEach(v => {
+        const val = variableValues[v.name] !== undefined ? variableValues[v.name] : 0;
+        html += '<div class="variable-row">' +
+                '  <span class="variable-name">' + v.name + '</span>' +
+                '  <span class="variable-value">' + val + '</span>' +
+                '</div>';
+      });
+      html += '</div>';
+      variableContainer.innerHTML = html;
+    } else {
+      variableContainer.innerHTML = 
+        '<div class="term-empty-state">' +
+        '  <div class="term-empty-icon"><span>{x}</span></div>' +
+        '  <div class="term-empty-text">No Variable added</div>' +
+        '</div>';
+    }
+  }
+}
+
 
 function resetToolboxAndAIClasses() {
   window._aiTrainedClasses = null;
@@ -411,7 +915,6 @@ async function listenForData() {
         const { value, done } = await reader.read();
 
         if (done) {
-          console.log("USB port closed by device");
           break;
         }
 
@@ -447,7 +950,6 @@ async function listenForData() {
       try {
         reader.releaseLock();
       } catch (e) {
-        console.log("Reader release error:", e.message);
       }
     }
     stm32Reader = null;
@@ -472,7 +974,6 @@ async function closeUSB() {
       try {
         stm32Reader.releaseLock();
       } catch (e) {
-        console.log("Reader already released:", e.message);
       }
       stm32Reader = null;
     }
@@ -481,7 +982,6 @@ async function closeUSB() {
       try {
         stm32Writer.releaseLock();
       } catch (e) {
-        console.log("Writer already released:", e.message);
       }
       stm32Writer = null;
     }
@@ -490,7 +990,6 @@ async function closeUSB() {
       try {
         await stm32Port.close();
       } catch (e) {
-        console.log("Port close error (non-critical):", e.message);
       }
       stm32Port = null;
     }
@@ -518,7 +1017,6 @@ function closeBLE() {
       try {
         bleDevice.removeEventListener('gattserverdisconnected', _onBLEDisconnect);
       } catch (e) {
-        console.log("Event listener removal error:", e.message);
       }
     }
 
@@ -526,7 +1024,6 @@ function closeBLE() {
       try {
         bleGattServer.disconnect();
       } catch (e) {
-        console.log("GATT disconnect error:", e.message);
       }
     }
 
@@ -824,9 +1321,18 @@ function _flushMsgQueue() {
   // Build a DocumentFragment so we do ONE DOM write, not N
   const frag = document.createDocumentFragment();
   while (_msgQueue.length > 0) {
-    const { ts, cls, src, text } = _msgQueue.shift();
+    const { ts, cls, src, text, sensor } = _msgQueue.shift();
     const row = document.createElement('div');
     row.className = 'rd-line';
+    if (sensor) {
+      row.setAttribute('data-sensor', sensor);
+    }
+    
+    // Apply filtering to new line if filter is active
+    if (!isLineMatchingFilter(row, activeSensorFilter)) {
+      row.classList.add('line-hidden');
+    }
+
     row.innerHTML =
       '<span class="rd-ts">' + ts + '</span>' +
       '<span class="' + cls + '">[' + src + ']</span>' +
@@ -846,9 +1352,198 @@ function _flushMsgQueue() {
 
 function handleBoardMessage(msg, source) {
   if (!msg || msg === '-') return;   // skip legacy clear-placeholder
-  console.log("Board [" + (source || 'SYS') + "]:", msg);
 
   if (typeof checkAck === 'function') checkAck(msg);
+
+  let matchedSensorName = null;
+
+  // REDESIGNED TERMINAL: Parse variables dynamically from DATA JSON or print statements
+  try {
+    if (msg.startsWith('DATA:')) {
+      const data = JSON.parse(msg.slice(5));
+      const sensorType = data.type; // e.g. "button", "temp", "ultrasonic", "ir"
+      const sensorValue = data.value;
+      for (const varName in varToSensorMap) {
+        if (isSensorTypeMatch(sensorType, varToSensorMap[varName])) {
+          variableValues[varName] = sensorValue;
+          matchedSensorName = varToSensorMap[varName];
+          setTimeout(updateSensorsAndVariablesUI, 0);
+        }
+      }
+      if (!matchedSensorName) {
+        for (const key in SENSOR_NAME_MAP) {
+          const displayName = SENSOR_NAME_MAP[key];
+          if (isSensorTypeMatch(sensorType, displayName)) {
+            matchedSensorName = displayName;
+            break;
+          }
+        }
+      }
+    } else {
+      const cleanedMsg = msg.trim();
+      const lowerMsg = cleanedMsg.toLowerCase();
+      
+      // Check if it's a raw number
+      const numericValue = parseFloat(msg.replace(/[^\d.-]/g, '').trim());
+      const isNumber = !isNaN(numericValue) && isFinite(numericValue);
+      
+      if (isNumber) {
+        let numericUpdate = false;
+        
+        // A. Match to last printed string label if available
+        if (lastStringMessage) {
+          const label = lastStringMessage.toLowerCase().trim();
+          let matchedVarName = null;
+          if (typeof workspace !== 'undefined' && workspace) {
+            const vars = workspace.getAllVariables();
+            const exactVar = vars.find(v => v.name.toLowerCase() === label);
+            if (exactVar) {
+              matchedVarName = exactVar.name;
+            } else {
+              for (const varName in varToSensorMap) {
+                if (isSensorTypeMatch(label, varToSensorMap[varName])) {
+                  matchedVarName = varName;
+                  break;
+                }
+              }
+            }
+          }
+          if (matchedVarName) {
+            variableValues[matchedVarName] = numericValue;
+            matchedSensorName = varToSensorMap[matchedVarName];
+            numericUpdate = true;
+          }
+          
+          if (!matchedSensorName) {
+            const bestSensor = getBestSensorForText(label);
+            if (bestSensor) {
+              matchedSensorName = bestSensor;
+            }
+          }
+          
+          if (!matchedSensorName) {
+            for (const key in SENSOR_NAME_MAP) {
+              const displayName = SENSOR_NAME_MAP[key];
+              if (isSensorTypeMatch(label, displayName)) {
+                matchedSensorName = displayName;
+                break;
+              }
+            }
+          }
+        }
+        
+        // B. Directly printed variables (only if there is exactly one to avoid ambiguity/leaks)
+        if (!numericUpdate) {
+          const keys = Object.keys(directlyPrintedVars);
+          if (keys.length === 1) {
+            const varName = keys[0];
+            variableValues[varName] = numericValue;
+            matchedSensorName = varToSensorMap[varName];
+            numericUpdate = true;
+          }
+        }
+        
+        // C. Fallback ranges mapping
+        if (!numericUpdate) {
+          for (const varName in varToSensorMap) {
+            const sensorDisplay = varToSensorMap[varName];
+            if (sensorDisplay === 'Temperature' && (numericValue > -10 && numericValue < 80)) {
+              variableValues[varName] = numericValue;
+              matchedSensorName = sensorDisplay;
+              numericUpdate = true;
+            }
+            if (sensorDisplay === 'Ultrasonic' && (numericValue >= 0 && numericValue < 400)) {
+              variableValues[varName] = numericValue;
+              matchedSensorName = sensorDisplay;
+              numericUpdate = true;
+            }
+          }
+        }
+        
+        if (numericUpdate) {
+          setTimeout(updateSensorsAndVariablesUI, 0);
+        }
+      } else {
+        // Not a number - it's a string log message
+        
+        // 1. Check for standard numeric / variable assignment text (e.g., room_temp = 23.4)
+        const assignmentRegexes = [
+          /([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([0-9.-]+)/g,
+          /([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([0-9.-]+)/g,
+          /([a-zA-Z_][a-zA-Z0-9_]*)\s+([0-9.-]+)/g
+        ];
+        let assignmentsFound = false;
+        for (const regex of assignmentRegexes) {
+          let match;
+          regex.lastIndex = 0;
+          while ((match = regex.exec(msg)) !== null) {
+            const label = match[1];
+            const varVal = parseFloat(match[2]);
+            if (!isNaN(varVal)) {
+              let matchedVarName = null;
+              if (typeof workspace !== 'undefined' && workspace) {
+                const vars = workspace.getAllVariables();
+                const exactVar = vars.find(v => v.name.toLowerCase() === label.toLowerCase());
+                if (exactVar) {
+                  matchedVarName = exactVar.name;
+                } else {
+                  for (const varName in varToSensorMap) {
+                    if (isSensorTypeMatch(label, varToSensorMap[varName])) {
+                      matchedVarName = varName;
+                      break;
+                    }
+                  }
+                }
+              }
+              if (matchedVarName) {
+                variableValues[matchedVarName] = varVal;
+                matchedSensorName = varToSensorMap[matchedVarName];
+                assignmentsFound = true;
+              }
+            }
+          }
+        }
+        if (assignmentsFound) {
+          setTimeout(updateSensorsAndVariablesUI, 0);
+        }
+        
+        // 2. Check for literal strings matching known print output maps
+        let printMatchFound = false;
+        const bestSensor = getBestSensorForText(lowerMsg);
+        if (bestSensor) {
+          let value = 1;
+          if (lowerMsg.includes('not ') || lowerMsg.includes('no ') || lowerMsg.includes('clear') || lowerMsg.includes('idle') || lowerMsg.includes('open') || lowerMsg.includes('normal')) {
+            value = 0;
+          }
+          for (const varName in varToSensorMap) {
+            if (varToSensorMap[varName] === bestSensor) {
+              variableValues[varName] = value;
+              printMatchFound = true;
+            }
+          }
+          matchedSensorName = bestSensor;
+        }
+        if (printMatchFound) {
+          setTimeout(updateSensorsAndVariablesUI, 0);
+        }
+        
+        if (!matchedSensorName) {
+          for (const key in SENSOR_NAME_MAP) {
+            const displayName = SENSOR_NAME_MAP[key];
+            if (isSensorTypeMatch(cleanedMsg, displayName)) {
+              matchedSensorName = displayName;
+              break;
+            }
+          }
+        }
+        
+        // Save this string log to associate with the next incoming number(s)
+        lastStringMessage = cleanedMsg;
+      }
+    }
+  } catch (err) {
+    console.warn("Redesigned Terminal error parsing variables from log:", err);
+  }
 
   const ts = new Date().toLocaleTimeString('en', { hour12: false });
   const src = (source || 'SYS').toUpperCase();
@@ -857,10 +1552,16 @@ function handleBoardMessage(msg, source) {
       : src === 'WIFI' ? 'rd-badge-wifi'
         : 'rd-badge-sys';
 
-  // Push to queue instead of writing to DOM immediately
-  _msgQueue.push({ ts, cls, src, text: msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') });
+  // Push to queue, including the resolved sensor name
+  _msgQueue.push({ 
+    ts, 
+    cls, 
+    src, 
+    text: msg.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+    sensor: matchedSensorName
+  });
 
-  // Schedule one RAF flush — if one is already pending, nothing extra needed
+  // Schedule one RAF flush
   if (!_msgRafPending) {
     _msgRafPending = true;
     requestAnimationFrame(_flushMsgQueue);
@@ -923,7 +1624,6 @@ async function sendCodeToESP32_MQTT(code) {
   });
   mqttClient.on('message', function (topic, message) {
     const data = message.toString();
-    console.log(`📩 ${topic}:`, data);
 
     // Route every board response to the frontend display.
     // Topics like esp32/ultrasonic publish JSON: {"type":"ultrasonic","value":12,"unit":"cm"}
@@ -1626,7 +2326,7 @@ function initSoilMoisturePopup3D() {
       const blobUrl = 'assets/models/soil_sensor.glb';
 
       const dracoLoader = new THREE.DRACOLoader();
-      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+      dracoLoader.setDecoderPath('offline_libs/draco/');
       const loader = new THREE.GLTFLoader();
       loader.setDRACOLoader(dracoLoader);
 
@@ -5420,7 +6120,6 @@ async function start() {
   workspace.registerToolboxCategoryCallback('LIST', window.__listFlyoutCallback);
   workspace.registerButtonCallback('CREATE_LIST_VARIABLE', function () {
     Blockly.Variables.createVariableButtonHandler(workspace, function (varName) {
-      console.log('✅ List variable created:', varName);
     }, 'list');
   });
 
@@ -5621,7 +6320,6 @@ async function start() {
           if (res.ok && !isHtml && !pathDetected) {
             pathDetected = true;
             BASE_PATH = path;
-            console.log('✅ Icon path detected: ' + BASE_PATH);
             applyIcons();
           }
         }).catch(function () { }).finally(function () {
@@ -5728,7 +6426,6 @@ async function start() {
       if (zIn) swapIcon(zIn, 'curio-zoom-in.svg', 40, 40);
       if (zOut) swapIcon(zOut, 'curio-zoom-out.svg', 40, 40);
 
-      console.log('✅ Curio custom workspace icons applied! (path: ' + BASE_PATH + ')');
     }
 
     window.applyCurioIcons = applyIcons;
@@ -6446,7 +7143,6 @@ async function start() {
 
       // Check all elements at the click point — not just the top one
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      console.log('🖱️ Tap elements:', elements.map(el => el.tagName + (el.className ? '.' + el.className : '')));
 
       // Find any <image> SVG element in the stack
       const imageEl = elements.find(el =>
@@ -6454,7 +7150,6 @@ async function start() {
       );
 
       if (!imageEl) return;
-      console.log('🖼️ Image found at point:', imageEl);
 
       // Now find which FieldImage in workspace owns this <image> element
       const blocks = workspace.getAllBlocks(false);
@@ -6465,10 +7160,6 @@ async function start() {
             if (!root) continue;
 
             if (root === imageEl || root.contains(imageEl)) {
-              console.log('✅ Field matched:', field);
-              console.log('Handler keys:', Object.keys(field).filter(k =>
-                k.toLowerCase().includes('click') || k.toLowerCase().includes('handler')
-              ));
 
               if (typeof field.clickHandler === 'function') {
                 field.clickHandler(field);
@@ -7223,6 +7914,10 @@ async function start() {
 
   // Register the workspace change listener for live commands
   workspace.addChangeListener(ev => LiveModeEngine.onWorkspaceChange(ev));
+
+  // REDESIGNED TERMINAL: Initialize UI scan and hook change listener
+  updateSensorsAndVariablesUI();
+  workspace.addChangeListener(() => updateSensorsAndVariablesUI());
 
   // Wire the ⚡ toggle button
   const _liveModeBtn = document.getElementById('btnLiveMode');
@@ -8472,7 +9167,6 @@ const LiveModeEngine = (() => {
         const _orig = handleBoardMessage;
         handleBoardMessage = (msg, source) => { _orig(msg, source); this.Terminal.onBoardMessage(msg); };
       }
-      console.log('[LiveMode] Engine initialised \u2014 ready.');
     },
 
     /** Enable Live Mode. Device must be connected first. */
@@ -8724,7 +9418,6 @@ function applyAIClasses(classes) {
       setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => { toast.style.display = 'none'; }, 500); }, 3500);
     }
 
-    console.log('[AI Train] Toolbox updated for classes:', classes);
   }
 
   var blocklyDiv = document.getElementById('blocklyDiv');
@@ -8851,7 +9544,6 @@ function applyVoiceClasses(classes) {
     // Also store for sessionStorage reload
     try { sessionStorage.setItem('curio_voice_trained', JSON.stringify(classes)); } catch (e) { }
 
-    console.log('[Voice Train] Toolbox updated for words:', classes);
   }
 
   var blocklyDiv = document.getElementById('blocklyDiv');
@@ -9040,7 +9732,6 @@ function _initBike3D() {
         }
       });
       bikeState.wheelMeshes = wm;
-      console.log('[Bike] Wheel meshes:', wm.length, wm.map(m => m.name));
       _runBikeAnim();
 
     }, undefined, function (err) {
@@ -9212,7 +9903,6 @@ function applyPoseClasses(classes) {
 
     try { sessionStorage.setItem('curio_pose_trained', JSON.stringify(classes)); } catch (e) { }
 
-    console.log('[Pose Train] Toolbox updated for poses:', classes);
   }
 
   var blocklyDiv = document.getElementById('blocklyDiv');

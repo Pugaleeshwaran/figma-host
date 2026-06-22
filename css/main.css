@@ -964,8 +964,7 @@
        Tabs: Python Code Generation | Terminal | AI Chat
        ══════════════════════════════════════════════════════════ */
 
-    /* Google Fonts import for Inter */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    /* Inter font is loaded via <link> in index.html head (non-blocking) */
 
     .code {
       background: transparent;
@@ -7857,3 +7856,320 @@
       filter: drop-shadow(2px 0 8px rgba(0, 0, 0, 0.18));
       transition: filter 0.22s ease;
     }
+
+    /* =====================================================================
+       REDESIGNED TERMINAL PANELS (Figma Design matching)
+       ===================================================================== */
+    .term-card-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 12px;
+      height: 100%;
+      box-sizing: border-box;
+      overflow-y: auto;
+      background: #FAF8F6;
+    }
+
+    body.dark-mode .term-card-container {
+      background: #0f172a;
+    }
+
+    .term-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    body.dark-mode .term-card {
+      background: #1e293b;
+      border-color: #334155;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .term-card-header {
+      padding: 8px 12px;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    body.dark-mode .term-card-header {
+      border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-sensors .term-card-header {
+      background: #FFEAD2;
+      color: #C27D38;
+    }
+    body.dark-mode .card-sensors .term-card-header {
+      background: #452b15;
+      color: #f7a24a;
+    }
+
+    .card-variables .term-card-header {
+      background: #DCE6FF;
+      color: #3D5AE0;
+    }
+    body.dark-mode .card-variables .term-card-header {
+      background: #172554;
+      color: #93c5fd;
+    }
+
+    .card-output .term-card-header {
+      background: #F1F5F9;
+      color: #475569;
+    }
+    body.dark-mode .card-output .term-card-header {
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    .term-card-body {
+      padding: 12px;
+      min-height: 80px;
+      max-height: 180px;
+      overflow-y: auto;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+
+    body.dark-mode .term-card-body {
+      background: #1e293b;
+    }
+
+    .card-output .term-card-body {
+      padding: 0;
+      flex: 1 1 auto;
+      min-height: 220px;
+      max-height: none;
+      justify-content: flex-start;
+      background: #0f172a !important;
+    }
+
+    /* Empty states */
+    .term-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #94a3b8;
+      text-align: center;
+      user-select: none;
+      padding: 10px 0;
+    }
+
+    .term-empty-icon {
+      font-size: 20px;
+      line-height: 1;
+      opacity: 0.6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .term-empty-icon span {
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .term-empty-text {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* Active Sensor Badges/Pills */
+    .sensor-pills-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-start;
+      align-items: center;
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .sensor-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: #FFFFFF;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 20px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    body.dark-mode .sensor-pill {
+      background: #334155;
+      border-color: #475569;
+      color: #cbd5e1;
+    }
+
+    .sensor-pill:hover {
+      border-color: #3D5AE0;
+      color: #3D5AE0;
+      transform: translateY(-1px);
+    }
+
+    body.dark-mode .sensor-pill:hover {
+      border-color: #93c5fd;
+      color: #93c5fd;
+    }
+
+    .sensor-pill.active {
+      background: #3D5AE0;
+      border-color: #3D5AE0;
+      color: #FFFFFF !important;
+      box-shadow: 0 2px 6px rgba(61, 90, 224, 0.3);
+    }
+
+    body.dark-mode .sensor-pill.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #FFFFFF !important;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    }
+
+    .sensor-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #FF9F43;
+      box-shadow: 0 0 4px #FF9F43;
+    }
+
+    .sensor-pill.active .sensor-pill-dot {
+      background: #FFFFFF !important;
+      box-shadow: 0 0 4px #FFFFFF;
+    }
+
+    /* Active Variables Rows */
+    .variable-rows-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .variable-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    body.dark-mode .variable-row {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .variable-name {
+      color: #475569;
+      font-weight: bold;
+    }
+
+    body.dark-mode .variable-name {
+      color: #cbd5e1;
+    }
+
+    .variable-value {
+      color: #3D5AE0;
+      font-weight: bold;
+    }
+
+    body.dark-mode .variable-value {
+      color: #93c5fd;
+    }
+
+    /* Output Terminal Styles */
+    .card-output .rd-wrapper {
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a !important;
+    }
+
+    #responseDisplay {
+      flex: 1 1 auto;
+      padding: 10px;
+      font-family: 'Fira Code', 'Courier New', Courier, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-y: auto;
+      color: #e2e8f0;
+      background: #0f172a !important;
+    }
+
+    #responseDisplay .rd-line {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 2px;
+      transition: opacity 0.15s ease;
+      white-space: pre-wrap;
+    }
+
+    /* Hidden filtered lines */
+    #responseDisplay .rd-line.line-hidden {
+      display: none !important;
+    }
+
+    /* Terminal Action Buttons */
+    .term-clear-btn {
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    body.dark-mode .term-clear-btn {
+      border-color: #475569;
+      color: #94a3b8;
+    }
+
+    .term-clear-btn:hover {
+      background: #cbd5e1;
+      color: #1e293b;
+      border-color: #cbd5e1;
+    }
+
+    body.dark-mode .term-clear-btn:hover {
+      background: #475569;
+      color: #f8fafc;
+      border-color: #475569;
+    }

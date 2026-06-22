@@ -336,6 +336,5 @@ function cpAiClearChat() {
   var storedModel = localStorage.getItem('openrouter_model');
   if (!storedModel || (FREE_MODELS.indexOf(storedModel) === -1 && storedModel !== 'qwen/qwen-2.5-coder-32b-instruct' && storedModel !== 'google/gemini-3.5-flash' && storedModel !== 'google/gemini-3.1-pro')) {
     localStorage.setItem('openrouter_model', 'nex-agi/nex-n2-pro:free');
-    console.log('OpenRouter model reset to current default.');
   }
 })();
