@@ -8139,11 +8139,6 @@
       white-space: pre-wrap;
     }
 
-    /* Hidden filtered lines */
-    #responseDisplay .rd-line.line-hidden {
-      display: none !important;
-    }
-
     /* Terminal Action Buttons */
     .term-clear-btn {
       background: transparent;

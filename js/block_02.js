@@ -10,12 +10,17 @@ let defaultToolboxConfig = null;
 // =====================================================================
 // REDESIGNED TERMINAL PANELS STATE & LOGIC
 // =====================================================================
-let activeSensorFilter = null;
+let activeSensorSelection = null;
 let varToSensorMap = {};
 let printOutputToSensorMap = {};
 let directlyPrintedVars = {};
 let lastStringMessage = "";
 const variableValues = {};
+
+function toggleSensorSelection(sensorName) {
+  activeSensorSelection = (activeSensorSelection === sensorName) ? null : sensorName;
+  updateSensorsAndVariablesUI();
+}
 
 const SENSOR_NAME_MAP = {
   'tep_ana': 'Temperature',
@@ -141,10 +146,10 @@ function getSensorColor(name) {
 
 function isSensorTypeMatch(rawType, displayName) {
   if (!rawType || !displayName) return false;
-  // Normalize both by lowercasing and stripping underscores & spaces
-  const rt = rawType.toLowerCase().replace(/[_\s]/g, '').trim();
-  const dn = displayName.toLowerCase().replace(/[_\s]/g, '').trim();
-  
+  // Normalize: lowercase, strip underscores, spaces, and hyphens
+  const rt = rawType.toLowerCase().replace(/[_\s-]/g, '').trim();
+  const dn = displayName.toLowerCase().replace(/[_\s-]/g, '').trim();
+
   if (rt === dn) return true;
 
   // Custom normalized synonym mappings
@@ -162,7 +167,37 @@ function isSensorTypeMatch(rawType, displayName) {
     'soil': ['soilmoisture'],
     'soilmoisture': ['soil'],
     'light': ['ldr', 'ambientlight'],
-    'ldr': ['light', 'ambientlight']
+    'ldr': ['light', 'ambientlight'],
+    'hum': ['humidity'],
+    'humidity': ['hum'],
+    'tds': ['watertds', 'watertdssensor'],
+    'watertds': ['tds'],
+    'uv': ['uvsensor'],
+    'uvsensor': ['uv'],
+    'ecg': ['ecgsensor'],
+    'ecgsensor': ['ecg'],
+    'max': ['maxsensor'],
+    'maxsensor': ['max'],
+    'rtc': ['rtcclock', 'rtcsensor'],
+    'rtcclock': ['rtc'],
+    'nfc': ['nfcreader'],
+    'nfcreader': ['nfc'],
+    'rc': ['rcsensor'],
+    'rcsensor': ['rc'],
+    'xray': ['xray'],
+    'colour': ['color', 'colorsensor'],
+    'color': ['colour', 'colorsensor'],
+    'colorsensor': ['color', 'colour'],
+    'motion': ['pir', 'dinmotion'],
+    'pir': ['motion'],
+    'prox': ['proximity'],
+    'proximity': ['prox'],
+    'vib': ['vibration'],
+    'vibration': ['vib'],
+    'flex': ['flexsensor', 'flexiforce'],
+    'flexsensor': ['flex'],
+    'mag': ['magneticsensor', 'compass'],
+    'magneticsensor': ['mag']
   };
   
   // Exact synonym check
@@ -186,18 +221,18 @@ function isSensorTypeMatch(rawType, displayName) {
     if (rt.startsWith('btn') || rt.startsWith('button')) return true;
   }
 
-  // Fallback prefix checks only if at least 4 characters long to avoid false matches
+  // Fallback prefix checks (4+ chars to avoid false matches)
   if (rt.length >= 4 && dn.startsWith(rt)) return true;
   if (dn.length >= 4 && rt.startsWith(dn)) return true;
 
   if (synonyms[rt]) {
     for (const syn of synonyms[rt]) {
-      if (syn === dn || (syn.length >= 4 && dn.startsWith(syn)) || (dn.length >= 4 && syn.startsWith(dn))) return true;
+      if (syn === dn || (syn.length >= 2 && dn.startsWith(syn)) || (dn.length >= 2 && syn.startsWith(dn))) return true;
     }
   }
   if (synonyms[dn]) {
     for (const syn of synonyms[dn]) {
-      if (syn === rt || (syn.length >= 4 && rt.startsWith(syn)) || (rt.length >= 4 && syn.startsWith(rt))) return true;
+      if (syn === rt || (syn.length >= 2 && rt.startsWith(syn)) || (rt.length >= 2 && syn.startsWith(rt))) return true;
     }
   }
   
@@ -216,122 +251,6 @@ function getBestSensorForText(text) {
     }
   }
   return null;
-}
-
-function isLineMatchingFilter(rowOrText, filterName) {
-  if (!filterName) return true;
-  const filterWord = filterName.toLowerCase();
-  
-  if (rowOrText && typeof rowOrText === 'object' && rowOrText.getAttribute) {
-    const sensorAttr = rowOrText.getAttribute('data-sensor');
-    if (sensorAttr) {
-      return sensorAttr.toLowerCase() === filterWord;
-    }
-    // Fallback if data-sensor is missing
-    const msgEl = rowOrText.querySelector('.rd-msg');
-    const text = msgEl ? msgEl.textContent : rowOrText.textContent || '';
-    return isTextMatchingFilter(text, filterName);
-  }
-  
-  return isTextMatchingFilter(rowOrText, filterName);
-}
-
-function isTextMatchingFilter(text, filterName) {
-  if (!filterName) return true;
-  const filterWord = filterName.toLowerCase();
-  const rawText = text.toLowerCase().trim();
-  
-  // 1. Direct match checks
-  if (rawText.includes(filterWord)) return true;
-  if (isSensorTypeMatch(rawText, filterName)) return true;
-  
-  // If the rawText matches a DIFFERENT active sensor in the workspace, hide it from this filter
-  for (const varName in varToSensorMap) {
-    const associatedSensor = varToSensorMap[varName];
-    if (isSensorTypeMatch(rawText, associatedSensor)) {
-      return false;
-    }
-  }
-  
-  // 2. Map print string checks using the longest specific matching key
-  const bestSensor = getBestSensorForText(rawText);
-  if (bestSensor) {
-    return bestSensor.toLowerCase() === filterWord;
-  }
-  
-  // 3. Label/Assignment log checks (e.g. "distance: 12.5", "temp = 24.5")
-  const assignmentRegexes = [
-    /([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([0-9.-]+)/g,
-    /([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([0-9.-]+)/g,
-    /([a-zA-Z_][a-zA-Z0-9_]*)\s+([0-9.-]+)/g
-  ];
-  for (const regex of assignmentRegexes) {
-    let match;
-    regex.lastIndex = 0;
-    if ((match = regex.exec(rawText)) !== null) {
-      const label = match[1];
-      
-      // If the label matches the filter word (or its synonym), show it
-      if (isSensorTypeMatch(label, filterName)) {
-        return true;
-      }
-      
-      // If the label matches a DIFFERENT active sensor in the workspace, hide it from this filter
-      for (const varName in varToSensorMap) {
-        const associatedSensor = varToSensorMap[varName];
-        if (isSensorTypeMatch(label, associatedSensor)) {
-          return false;
-        }
-      }
-    }
-  }
-  
-  // 4. Fallback Heuristics for raw numbers
-  const numericValue = parseFloat(text.replace(/[^\d.-]/g, '').trim());
-  if (!isNaN(numericValue) && isFinite(numericValue)) {
-    // If the workspace has directly printed variables, check if their sensor fits the filter
-    let hasMatchingDirectPrint = false;
-    let anyDirectPrint = false;
-    for (const varName in directlyPrintedVars) {
-      anyDirectPrint = true;
-      const sensorDisplay = varToSensorMap[varName];
-      if (sensorDisplay && sensorDisplay.toLowerCase() === filterWord) {
-        hasMatchingDirectPrint = true;
-      }
-    }
-    if (anyDirectPrint) {
-      return hasMatchingDirectPrint;
-    }
-    
-    // Otherwise fall back to typical numeric ranges
-    if (filterWord === 'temperature') {
-      return (numericValue > -20 && numericValue < 100);
-    }
-    if (filterWord === 'ultrasonic') {
-      return (numericValue >= 0 && numericValue < 400);
-    }
-  }
-  
-  return false;
-}
-
-function toggleSensorFilter(sensorName) {
-  if (activeSensorFilter === sensorName) {
-    activeSensorFilter = null;
-  } else {
-    activeSensorFilter = sensorName;
-  }
-  updateSensorsAndVariablesUI();
-  
-  // Re-apply filter to already logged lines in #responseDisplay
-  const lines = document.querySelectorAll('#responseDisplay .rd-line');
-  lines.forEach(line => {
-    if (isLineMatchingFilter(line, activeSensorFilter)) {
-      line.classList.remove('line-hidden');
-    } else {
-      line.classList.add('line-hidden');
-    }
-  });
 }
 
 function updateSensorsAndVariablesUI() {
@@ -451,21 +370,33 @@ function updateSensorsAndVariablesUI() {
   if (!printOutputToSensorMap['normal']) printOutputToSensorMap['normal'] = 'Air Quality';
 
   // 3. SENSORS CARD RENDER
+  // Build uniqueSensors first so name-based variable mapping can use it
+  const uniqueSensors = new Set();
+  blocks.forEach(b => {
+    if (SENSOR_NAME_MAP[b.type]) {
+      uniqueSensors.add(SENSOR_NAME_MAP[b.type]);
+    }
+  });
+
+  // Name-based variable → sensor mapping (e.g. variable "ultra" → "Ultrasonic")
+  workspace.getAllVariables().forEach(v => {
+    if (!varToSensorMap[v.name]) {
+      uniqueSensors.forEach(sensorDisplay => {
+        if (isSensorTypeMatch(v.name, sensorDisplay)) {
+          varToSensorMap[v.name] = sensorDisplay;
+        }
+      });
+    }
+  });
+
   const sensorContainer = document.getElementById('term-sensors-body');
   if (sensorContainer) {
-    const uniqueSensors = new Set();
-    blocks.forEach(b => {
-      if (SENSOR_NAME_MAP[b.type]) {
-        uniqueSensors.add(SENSOR_NAME_MAP[b.type]);
-      }
-    });
-
     if (uniqueSensors.size > 0) {
       let html = '<div class="sensor-pills-list">';
       uniqueSensors.forEach(name => {
-        const isActive = activeSensorFilter === name;
+        const isActive = activeSensorSelection === name;
         const color = getSensorColor(name);
-        html += '<button class="sensor-pill ' + (isActive ? 'active' : '') + '" onclick="toggleSensorFilter(\'' + name + '\')">' +
+        html += '<button class="sensor-pill ' + (isActive ? 'active' : '') + '" onclick="toggleSensorSelection(\'' + name + '\')">' +
                 '<span class="sensor-pill-dot" style="background:' + color + '; box-shadow: 0 0 4px ' + color + '"></span>' +
                 name + '</button>';
       });
@@ -483,24 +414,35 @@ function updateSensorsAndVariablesUI() {
   // 4. VARIABLES CARD RENDER
   const variableContainer = document.getElementById('term-variables-body');
   if (variableContainer) {
-    const variables = workspace.getAllVariables();
-    if (variables.length > 0) {
-      let html = '<div class="variable-rows-list">';
-      variables.forEach(v => {
-        const val = variableValues[v.name] !== undefined ? variableValues[v.name] : 0;
-        html += '<div class="variable-row">' +
-                '  <span class="variable-name">' + v.name + '</span>' +
-                '  <span class="variable-value">' + val + '</span>' +
-                '</div>';
-      });
-      html += '</div>';
-      variableContainer.innerHTML = html;
-    } else {
-      variableContainer.innerHTML = 
+    if (!activeSensorSelection) {
+      variableContainer.innerHTML =
         '<div class="term-empty-state">' +
         '  <div class="term-empty-icon"><span>{x}</span></div>' +
-        '  <div class="term-empty-text">No Variable added</div>' +
+        '  <div class="term-empty-text">Select a sensor to view variables</div>' +
         '</div>';
+    } else {
+      const allVars = workspace.getAllVariables();
+      // prefer variables explicitly mapped to this sensor; fall back to all variables
+      const mapped = allVars.filter(v => varToSensorMap[v.name] === activeSensorSelection);
+      const toShow = mapped.length > 0 ? mapped : allVars;
+      if (toShow.length > 0) {
+        let html = '<div class="variable-rows-list">';
+        toShow.forEach(v => {
+          const val = variableValues[v.name] !== undefined ? variableValues[v.name] : '—';
+          html += '<div class="variable-row">' +
+                  '  <span class="variable-name">' + v.name + '</span>' +
+                  '  <span class="variable-value">' + val + '</span>' +
+                  '</div>';
+        });
+        html += '</div>';
+        variableContainer.innerHTML = html;
+      } else {
+        variableContainer.innerHTML =
+          '<div class="term-empty-state">' +
+          '  <div class="term-empty-icon"><span>{x}</span></div>' +
+          '  <div class="term-empty-text">No variables in workspace</div>' +
+          '</div>';
+      }
     }
   }
 }
@@ -807,6 +749,7 @@ function _onBLEDisconnect() {
   bleControlChar = null;
   bleDataChar = null;
   handleBoardMessage("BLE disconnected", "SYS");
+  if (typeof resetRunStopButtons === 'function') resetRunStopButtons();
   const pill = document.getElementById('bt-text');
   if (pill) pill.innerText = "Bluetooth";
 }
@@ -938,6 +881,7 @@ async function listenForData() {
         if (!stopUsbReader) {
           console.error("USB read error:", readError.message);
           handleBoardMessage("USB disconnected (cable unplugged?)", "SYS");
+          resetRunStopButtons();
           break;
         }
       }
@@ -956,6 +900,16 @@ async function listenForData() {
     stm32Port = null;
     stm32Writer = null;
   }
+}
+
+// =====================================================================
+// HELPER: Reset Run/Stop buttons on disconnect
+// =====================================================================
+function resetRunStopButtons() {
+  const runBtn = document.getElementById("btnRun");
+  const stopBtn = document.getElementById("btnStop");
+  if (runBtn) runBtn.style.display = "flex";
+  if (stopBtn) stopBtn.style.display = "none";
 }
 
 // =====================================================================
@@ -997,6 +951,7 @@ async function closeUSB() {
     await new Promise(r => setTimeout(r, 300));
 
     handleBoardMessage("USB Disconnected ✅", "SYS");
+    resetRunStopButtons();
     const pill = document.getElementById('bt-text');
     if (pill) pill.innerText = "USB";
 
@@ -1033,6 +988,7 @@ function closeBLE() {
     bleDevice = null;
 
     handleBoardMessage("BLE Disconnected ✅", "SYS");
+    resetRunStopButtons();
     const pill = document.getElementById('bt-text');
     if (pill) pill.innerText = "Bluetooth";
 
@@ -1324,14 +1280,6 @@ function _flushMsgQueue() {
     const { ts, cls, src, text, sensor } = _msgQueue.shift();
     const row = document.createElement('div');
     row.className = 'rd-line';
-    if (sensor) {
-      row.setAttribute('data-sensor', sensor);
-    }
-    
-    // Apply filtering to new line if filter is active
-    if (!isLineMatchingFilter(row, activeSensorFilter)) {
-      row.classList.add('line-hidden');
-    }
 
     row.innerHTML =
       '<span class="rd-ts">' + ts + '</span>' +
@@ -1352,6 +1300,13 @@ function _flushMsgQueue() {
 
 function handleBoardMessage(msg, source) {
   if (!msg || msg === '-') return;   // skip legacy clear-placeholder
+
+  if (typeof msg === 'string') {
+    const lower = msg.toLowerCase();
+    if (lower.includes('disconnected') || lower.includes('disconnect')) {
+      if (typeof resetRunStopButtons === 'function') resetRunStopButtons();
+    }
+  }
 
   if (typeof checkAck === 'function') checkAck(msg);
 
@@ -1384,7 +1339,7 @@ function handleBoardMessage(msg, source) {
       const lowerMsg = cleanedMsg.toLowerCase();
       
       // Check if it's a raw number
-      const numericValue = parseFloat(msg.replace(/[^\d.-]/g, '').trim());
+      const numericValue = parseFloat(msg.trim());
       const isNumber = !isNaN(numericValue) && isFinite(numericValue);
       
       if (isNumber) {
@@ -1443,26 +1398,28 @@ function handleBoardMessage(msg, source) {
           }
         }
         
-        // C. Fallback ranges mapping
-        if (!numericUpdate) {
+        // C. Assign only to variables mapped to the currently selected sensor
+        if (!numericUpdate && activeSensorSelection) {
           for (const varName in varToSensorMap) {
-            const sensorDisplay = varToSensorMap[varName];
-            if (sensorDisplay === 'Temperature' && (numericValue > -10 && numericValue < 80)) {
+            if (varToSensorMap[varName] === activeSensorSelection) {
               variableValues[varName] = numericValue;
-              matchedSensorName = sensorDisplay;
-              numericUpdate = true;
-            }
-            if (sensorDisplay === 'Ultrasonic' && (numericValue >= 0 && numericValue < 400)) {
-              variableValues[varName] = numericValue;
-              matchedSensorName = sensorDisplay;
+              matchedSensorName = activeSensorSelection;
               numericUpdate = true;
             }
           }
         }
-        
-        if (numericUpdate) {
-          setTimeout(updateSensorsAndVariablesUI, 0);
+
+        // D. Last resort: exactly one workspace variable exists — assign to it
+        if (!numericUpdate && typeof workspace !== 'undefined' && workspace) {
+          const allVars = workspace.getAllVariables();
+          if (allVars.length === 1) {
+            variableValues[allVars[0].name] = numericValue;
+            numericUpdate = true;
+          }
         }
+
+        // Always refresh so live values appear in variable card
+        setTimeout(updateSensorsAndVariablesUI, 0);
       } else {
         // Not a number - it's a string log message
         
@@ -1504,6 +1461,9 @@ function handleBoardMessage(msg, source) {
           }
         }
         if (assignmentsFound) {
+          setTimeout(updateSensorsAndVariablesUI, 0);
+        } else if (typeof workspace !== 'undefined' && workspace) {
+          // Still refresh UI so the variable card stays current
           setTimeout(updateSensorsAndVariablesUI, 0);
         }
         
@@ -4379,14 +4339,14 @@ function defineGenerators() {
     const stateVal = block.getFieldValue('STATE');
 
     if (ports.length === 0) {
-      return ["# No pin selected\n", py.ORDER_NONE];
+      return "# No pin selected\n";
     }
 
     if (ports.length === 1) {
-      return [`await async_peltier("${ports[0]}","${stateVal}")`, py.ORDER_FUNCTION_CALL];
+      return `await async_peltier("${ports[0]}","${stateVal}")\n`;
     }
     const portList = ports.map(p => `"${p}"`).join(', ');
-    return [`await async_peltier(${portList},"${stateVal}")`, py.ORDER_FUNCTION_CALL];
+    return `await async_peltier(${portList},"${stateVal}")\n`;
   };
 
   reg['microwave_sensor'] = function (block) {
@@ -4551,7 +4511,7 @@ let _operationLock = false;
  * The IDs of buttons that participate in the mutex.
  * upload, playmode, stop, soft_reset, hard_reset are the main ops.
  */
-const LOCKABLE_BTN_IDS = ['upload', 'playmode', 'stop', 'soft_reset', 'hard_reset'];
+const LOCKABLE_BTN_IDS = ['upload', 'playmode', 'stop', 'soft_reset', 'hard_reset', 'btnRun', 'btnStop', 'btnUpload', 'btnLive'];
 
 /**
  * Acquire the operation lock.
@@ -7983,23 +7943,27 @@ async function start() {
   // RUN button - fire PLAY command, flip to Stop only if board is connected and command succeeds
   const _btnRun = document.getElementById("btnRun");
   if (_btnRun) _btnRun.onclick = async () => {
-    try {
-      const success = await sendUnifiedCommand("PLAY");
-      if (success) {
-        setRunning(true);
+    await withOpLock("btnRun", async () => {
+      try {
+        const success = await sendUnifiedCommand("PLAY");
+        if (success) {
+          setRunning(true);
+        }
+      } catch (e) {
+        console.error("Error starting program:", e);
       }
-    } catch (e) {
-      console.error("Error starting program:", e);
-    }
+    });
   };
 
   // STOP button — send STOP, then flip back to Run
   const _btnStop = document.getElementById("btnStop");
   if (_btnStop) _btnStop.onclick = async () => {
-    try {
-      await sendUnifiedCommand("STOP");
-    } catch (e) { /* ignore */ }
-    setRunning(false);  // always revert to Run after Stop
+    await withOpLock("btnStop", async () => {
+      try {
+        await sendUnifiedCommand("STOP");
+      } catch (e) { /* ignore */ }
+      setRunning(false);  // always revert to Run after Stop
+    });
   };
 
   // LIVE button → toggles live mode
@@ -8021,6 +7985,15 @@ async function start() {
     await withOpLock("upload", async () => {
       const code = pyGen.workspaceToCode(workspace);
       if (!code.trim()) { alert("Please drag some blocks first!"); return; }
+
+      // Auto-stop before upload
+      try {
+        await sendUnifiedCommand("STOP");
+        if (typeof setRunning === 'function') setRunning(false);
+        // Wait for the board to process the KeyboardInterrupt and return to REPL
+        await new Promise(r => setTimeout(r, 1000));
+      } catch (e) { /* ignore */ }
+
       const asyncCode = wrapWithAsyncio(code);
       if (isMobileApp()) {
         handleBoardMessage("Uploading via Bluetooth…", "SYS");
@@ -8049,6 +8022,15 @@ async function start() {
     await withOpLock("upload", async () => {
       const code = pyGen.workspaceToCode(workspace);
       if (!code.trim()) { alert("Please drag some blocks first!"); return; }
+
+      // Auto-stop before upload
+      try {
+        await sendUnifiedCommand("STOP");
+        if (typeof setRunning === 'function') setRunning(false);
+        // Wait for the board to process the KeyboardInterrupt and return to REPL
+        await new Promise(r => setTimeout(r, 1000));
+      } catch (e) { /* ignore */ }
+
       const asyncCode = wrapWithAsyncio(code);
 
       if (isMobileApp()) {
@@ -9923,6 +9905,10 @@ window.addEventListener('message', function (event) {
   try {
     const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     if (!msg) return;
+    if (typeof msg.type === 'string' && (msg.type.includes('DISCONNECT') || msg.type.includes('disconnect'))) {
+      if (typeof resetRunStopButtons === 'function') resetRunStopButtons();
+      window._mobileBLEConnected = false;
+    }
     if (msg.type === 'AI_MODEL_TRAINED') applyAIClasses(msg.classes);
     if (msg.type === 'VOICE_MODEL_TRAINED') applyVoiceClasses(msg.classes);
     if (msg.type === 'POSE_MODEL_TRAINED') applyPoseClasses(msg.classes);
