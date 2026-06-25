@@ -1745,7 +1745,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      z-index: 1000;
+      z-index: 4200;
       width: 300px;
       margin: 10% auto;
       padding: 20px;
@@ -1921,7 +1921,7 @@
       position: fixed;
       display: none;
       inset: 0;
-      z-index: 1000;
+      z-index: 4200;
       width: 300px;
       margin: 10% auto;
       padding: 20px;
@@ -3259,7 +3259,7 @@
     #wifiSettingsModal {
       position: fixed;
       inset: 0;
-      z-index: 1100;
+      z-index: 4200;
       width: 300px;
       margin: 10% auto;
       padding: 20px;
@@ -6530,7 +6530,7 @@
 
     .toolbox-toggle-btn {
       transform: translateY(-50%) !important;
-      z-index: 9998 !important;
+      z-index: 999 !important;
       /* Made the button bright blue so it doesn't camouflage against the dark blue workspace! */
       background: transparent !important;
       color: white !important;
