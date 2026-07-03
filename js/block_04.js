@@ -25,7 +25,7 @@
           status.textContent = 'Not connected';
         }
 
-        icon.src = connected ? './icons/power.png' : './icons/unplug.svg';
+        icon.src = connected ? './icons/power.svg' : './icons/unplug.svg';
         icon.alt = connected ? 'connected' : 'not connected';
       }
 
@@ -45,35 +45,38 @@
 
         var refR = ref.getBoundingClientRect();
         var wsR = ws.getBoundingClientRect();
-        var gap = 8;
+        var gap = 10;
 
         var leftVal = refR.left - wsR.left;
-        var widthVal = refR.width;
 
-        if (isCollapsed) {
-          widthVal = 72;
-        } else if (widthVal < 50) {
-          widthVal = 205; // default expanded width
-        }
-
+        // The devices panel no longer mirrors the toolbox's width — it has
+        // its own fixed size (set in CSS) so the two boxes never collide,
+        // regardless of how tall/short the toolbox's content happens to be.
         dp.style.left = leftVal + 'px';
-        dp.style.width = widthVal + 'px';
+        dp.style.removeProperty('width');
 
-        var refBottom = refR.bottom - wsR.top;
-        var dpH = dp.offsetHeight;
-
-        if (isCollapsed) {
-          dp.style.top = 'auto';
-          dp.style.bottom = gap + 'px';
-        } else {
-          if (refBottom + gap + dpH < wsR.height - gap) {
-            dp.style.top = (refBottom + gap) + 'px';
-            dp.style.bottom = 'auto';
+        // Toolbox gets a capped height with generous headroom; the devices
+        // panel is a small fixed-height box pinned to the bottom — fixed
+        // pixel sizing avoids any percentage/containing-block mismatch
+        // between the two elements.
+        // This JS height-lock only applies on mobile widths (must match the
+        // CSS `@media (max-width: 1000px)` breakpoint below — phones only,
+        // not tablets). On larger screens we clear any leftover inline
+        // value so the desktop height set in css/main.css
+        // (.blocklyToolboxDiv) is free to control it.
+        var isMobileWidth = window.innerWidth <= 1000;
+        if (tb && !isCollapsed) {
+          if (isMobileWidth) {
+            tb.style.setProperty('height', '70%', 'important');
+            tb.style.setProperty('max-height', '70%', 'important');
           } else {
-            dp.style.top = 'auto';
-            dp.style.bottom = gap + 'px';
+            tb.style.removeProperty('height');
+            tb.style.removeProperty('max-height');
           }
         }
+
+        dp.style.top = 'auto';
+        dp.style.bottom = gap + 'px';
       }
 
       /* ─────────────────────────────────────────────

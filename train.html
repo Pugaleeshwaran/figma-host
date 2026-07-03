@@ -879,6 +879,30 @@
             font-weight: 600;
         }
 
+        .k230-mini-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            background: #fff;
+            color: #1e293b;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .k230-mini-btn:hover { background: #f1f5f9; }
+        .k230-mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .k230-mini-detect { color: #16a34a; border-color: #86efac; }
+        .k230-mini-ping { color: #2563eb; border-color: #93c5fd; }
+        .k230-online-status {
+            font-size: 11px;
+            margin: 4px 0 4px 8px;
+            min-height: 14px;
+        }
+        .k230-online-status.ok  { color: #16a34a; }
+        .k230-online-status.err { color: #ef4444; }
+        .k230-online-status.chk { color: #64748b; }
+
         .action-wrap {
             padding: 12px 16px 16px;
         }
@@ -1155,6 +1179,7 @@
                             <select class="k230-select" id="deployMethodInput"
                                 onchange="onDeployMethodChange(this.value)">
                                 <option value="wifi" selected>Wi-Fi</option>
+                                <option value="online">🌐 Online Wi-Fi</option>
                                 <option value="usb">USB (WebSerial)</option>
                             </select>
                         </div>
@@ -1164,6 +1189,15 @@
                             <span>Port:</span>
                             <input type="text" class="k230-input" id="k230PortInput" value="8080" style="width:50px;">
                         </div>
+                        <div class="k230-row" id="onlineWifiRow" style="display:none;">
+                            <span>Board IP:</span>
+                            <input type="text" class="k230-input" id="onlineIpInput" value="192.168.0.128" style="width:110px;">
+                            <span>Port:</span>
+                            <input type="text" class="k230-input" id="onlinePortInput" value="8080" style="width:50px;">
+                            <button class="k230-mini-btn k230-mini-detect" id="onlineDetectBtn" onclick="autoDetectOnlineK230()">Auto-Detect</button>
+                            <button class="k230-mini-btn k230-mini-ping" id="onlinePingBtn" onclick="pingOnlineK230()">Ping</button>
+                        </div>
+                        <div class="k230-online-status" id="onlinePingStatus"></div>
                         <div class="k230-row" id="usbBaudRow" style="display:none;">
                             <span>Baud:</span>
                             <select class="k230-select" id="usbBaudSelect">
@@ -1244,50 +1278,170 @@
     <script>
         'use strict';
 
-        // Auto-detect backend URL from the origin this page was served from.
-        // If served via Cloudflare tunnel or the windows agent (port 5002) → use origin.
-        // If served via Expo dev server (port 8081) or any other non-backend origin → use Docker directly on port 5001.
-        (function () {
-            const origin = window.location.origin;
-            let url = 'http://localhost:5001'; // Default local Docker
-            if (origin && !origin.includes('file://') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
-                url = origin; // Use origin if hosted remotely (e.g. Google Cloud)
-            }
-            const input = document.getElementById('backendUrlInput');
-            if (input) input.value = url;
-        })();
+        // --- CHROMIUM WEBVIEW BLOB BUG PATCH & CORS PROXY ---
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+            if (arguments[1] && arguments[1].method === 'POST' && arguments[1].body instanceof Blob) {
+                let url = arguments[0];
+                const init = arguments[1];
+                
+                // Route K230 uploads directly to the board (Teammate's script handles CORS natively)
+                // Removed Docker proxy bypass
 
+                return new Promise((resolve, reject) => {
+                    let bytesSent = 0;
+                    const xhr = new XMLHttpRequest();
+                    if (xhr.upload) { xhr.upload.onprogress = (e) => { bytesSent = e.loaded; }; }
+                    xhr.open('POST', url, true);
+                    if (init.headers) {
+                        for (let k in init.headers) {
+                            xhr.setRequestHeader(k, init.headers[k]);
+                        }
+                    }
+                    xhr.onload = () => {
+                        resolve({
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            text: () => Promise.resolve(xhr.responseText)
+                        });
+                    };
+                    xhr.onerror = () => {
+                        if (url.includes(':8080/upload') && bytesSent > 0) {
+                            resolve({
+                                ok: true,
+                                status: 200,
+                                text: () => Promise.resolve("OK: K230 Drop")
+                            });
+                        } else {
+                            reject(new TypeError('Failed to fetch'));
+                        }
+                    };
+                    xhr.send(init.body);
+                });
+            }
+            return originalFetch.apply(this, arguments);
+        };
+        // ----------------------------------------
+
+
+        
+
+
+        let dynamicBackendUrl = null;
+        async function discoverBackend() {
+            const input = document.getElementById('backendUrlInput');
+            let manualUrl = input?.value?.trim();
+            if (manualUrl && !manualUrl.includes('localhost') && !manualUrl.includes('127.0.0.1')) {
+                let url = manualUrl.endsWith('/') ? manualUrl.slice(0, -1) : manualUrl;
+                localStorage.setItem('backend_url', url);
+                return url;
+            }
+
+            if (dynamicBackendUrl) return dynamicBackendUrl;
+            
+            const origin = window.location.origin;
+            if (origin && !origin.includes('file://') && !origin.includes('localhost') && !origin.includes('127.0.0.1') && origin !== 'null') {
+                return origin;
+            }
+
+            let saved = localStorage.getItem('backend_url');
+            if (saved && !saved.includes('localhost') && !saved.includes('127.0.0.1')) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 1000);
+                    await fetch(saved + '/health', { method: 'GET', mode: 'no-cors', signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    dynamicBackendUrl = saved;
+                    if (input) input.value = saved;
+                    return saved;
+                } catch(e) {}
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);color:white;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;font-family:sans-serif;">Auto-discovering Docker Backend...</div>';
+            document.body.appendChild(overlay);
+
+            return new Promise((resolve) => {
+                let found = false;
+                let pending = 0;
+                let subnets = ['192.168.0', '192.168.1', '192.168.29', '192.168.100', '192.168.137', '172.20.10', '172.25.128'];
+                
+                for (let subnet of subnets) {
+                    for (let i = 1; i < 255; i++) {
+                        if (found) break;
+                        let url = `http://${subnet}.${i}:5001`;
+                        pending++;
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 1200);
+                        
+                        fetch(url + '/health', { method: 'GET', mode: 'no-cors', signal: controller.signal })
+                            .then(() => {
+                                if (!found) {
+                                    found = true;
+                                    dynamicBackendUrl = url;
+                                    localStorage.setItem('backend_url', url);
+                                    if (input) input.value = url;
+                                    resolve(url);
+                                }
+                            })
+                            .catch(() => {})
+                            .finally(() => {
+                                clearTimeout(timeoutId);
+                                pending--;
+                                if (pending === 0 && !found) {
+                                    resolve(null);
+                                }
+                            });
+                    }
+                }
+            }).finally(() => {
+                overlay.remove();
+            });
+        }
+
+        
         function getBackendUrl() {
             const input = document.getElementById('backendUrlInput');
             let val = input?.value?.trim();
             if (val) return val.endsWith('/') ? val.slice(0, -1) : val;
-            
-            let origin = window.location.origin;
-            if (!origin || origin === 'null' || origin.startsWith('file')) {
-                return 'http://localhost:5001';
-            }
-            return origin;
+            return localStorage.getItem('backend_url') || 'http://192.168.0.10:5001';
         }
 
         async function postToBackend(endpoint, formData) {
-            const backendUrl = getBackendUrl();
+            const backendUrl = await discoverBackend();
+            if (!backendUrl) throw new Error("Could not auto-discover Docker backend on Wi-Fi.");
             const url = `${backendUrl}/${endpoint}`;
             try {
-                const resp = await fetch(url, { method: 'POST', body: formData });
-                if (!resp.ok) {
-                    const text = await resp.text().catch(() => null);
-                    let message = `Server error ${resp.status}`;
-                    if (text) {
-                        try {
-                            const body = JSON.parse(text);
-                            message = body.error || text;
-                        } catch {
-                            message = text;
+                return await new Promise((resolve, reject) => {
+                    let bytesSent = 0;
+                    const xhr = new XMLHttpRequest();
+                    if (xhr.upload) { xhr.upload.onprogress = (e) => { bytesSent = e.loaded; }; }
+                    xhr.open('POST', url, true);
+                    xhr.responseType = 'blob';
+                    xhr.onload = async () => {
+                        const respObj = {
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            blob: async () => xhr.response,
+                            json: async () => JSON.parse(await xhr.response.text()),
+                            text: async () => await xhr.response.text(),
+                            headers: { get: (name) => xhr.getResponseHeader(name) }
+                        };
+                        
+                        if (!respObj.ok) {
+                            let msg = `Server error ${xhr.status}`;
+                            try {
+                                const text = await respObj.text();
+                                try { msg = JSON.parse(text).error || text; } catch(e){ msg = text; }
+                            } catch(e) {}
+                            reject(new Error(msg));
+                        } else {
+                            resolve(respObj);
                         }
-                    }
-                    throw new Error(message);
-                }
-                return resp;
+                    };
+                    xhr.onerror = () => reject(new Error('Failed to fetch (Network/CORS error or WebView Blob bug)'));
+                    xhr.send(formData);
+                });
             } catch (err) {
                 throw new Error(`Backend request failed: ${url} — ${err.message}`);
             }
@@ -1428,10 +1582,93 @@
         // ── Deploy method toggle ──────────────────────────────────────
         function onDeployMethodChange(val) {
             document.getElementById('wifiRow').style.display = val === 'wifi' ? 'flex' : 'none';
+            document.getElementById('onlineWifiRow').style.display = val === 'online' ? 'flex' : 'none';
             document.getElementById('usbBaudRow').style.display = val === 'usb' ? 'flex' : 'none';
             document.getElementById('serialWarn').classList.toggle('show', val === 'usb' && !SERIAL_SUPPORTED);
             if (val !== 'usb') showUsbPanel(false);
         }
+
+        // ── Online Wi-Fi (board on existing router network) ───────────
+        function onlineUrl(path) {
+            const ip = document.getElementById('onlineIpInput').value.trim();
+            const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+            return `http://${ip}:${pt}${path}`;
+        }
+
+        async function pingOnlineK230() {
+            const statusEl = document.getElementById('onlinePingStatus');
+            const ip = document.getElementById('onlineIpInput').value.trim();
+            if (!ip) { statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Enter board IP first.'; return; }
+            statusEl.className = 'k230-online-status chk'; statusEl.textContent = 'Pinging...';
+            try {
+                await fetch(onlineUrl('/'), { method: 'GET', signal: AbortSignal.timeout(5000) });
+                statusEl.className = 'k230-online-status ok'; statusEl.textContent = 'Board reachable at ' + ip;
+            } catch (e) {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Not reachable. Check IP / Wi-Fi.';
+            }
+        }
+
+        function getOnlineLocalSubnet() {
+            return new Promise(resolve => {
+                try {
+                    const pc = new RTCPeerConnection({ iceServers: [] });
+                    pc.createDataChannel('');
+                    pc.createOffer().then(o => pc.setLocalDescription(o));
+                    pc.onicecandidate = e => {
+                        if (!e || !e.candidate) return;
+                        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+                        if (m) { pc.close(); resolve(m[1]); }
+                    };
+                    setTimeout(() => resolve(null), 3000);
+                } catch (e) { resolve(null); }
+            });
+        }
+
+        async function autoDetectOnlineK230() {
+            const detectBtn = document.getElementById('onlineDetectBtn');
+            const pingBtn = document.getElementById('onlinePingBtn');
+            const statusEl = document.getElementById('onlinePingStatus');
+            const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+            detectBtn.disabled = true; pingBtn.disabled = true; detectBtn.textContent = 'Scanning...';
+            statusEl.className = 'k230-online-status chk'; statusEl.textContent = 'Detecting local subnet...';
+
+            const subnet = await getOnlineLocalSubnet();
+            if (!subnet) {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Could not detect subnet. Enter IP manually.';
+                detectBtn.disabled = false; pingBtn.disabled = false; detectBtn.textContent = 'Auto-Detect';
+                return;
+            }
+            statusEl.textContent = `Scanning ${subnet}.1–254 on port ${pt}...`;
+
+            const probes = [];
+            for (let i = 1; i <= 254; i++) {
+                const ip = `${subnet}.${i}`;
+                probes.push(
+                    fetch(`http://${ip}:${pt}/`, { method: 'GET', signal: AbortSignal.timeout(1500) })
+                        .then(r => (r.ok || r.status === 404) ? ip : null)
+                        .catch(() => null)
+                );
+            }
+            const results = await Promise.all(probes);
+            const found = results.find(r => r !== null);
+            if (found) {
+                document.getElementById('onlineIpInput').value = found;
+                localStorage.setItem('k230_online_ip', found);
+                statusEl.className = 'k230-online-status ok'; statusEl.textContent = 'K230 found at ' + found;
+            } else {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'K230 not found on this network.';
+            }
+            detectBtn.disabled = false; pingBtn.disabled = false; detectBtn.textContent = 'Auto-Detect';
+        }
+
+        // persist online IP across sessions
+        (function () {
+            const el = document.getElementById('onlineIpInput');
+            if (!el) return;
+            const saved = localStorage.getItem('k230_online_ip');
+            if (saved) el.value = saved;
+            el.addEventListener('change', () => localStorage.setItem('k230_online_ip', el.value.trim()));
+        })();
 
         function updateCropSize(val) {
             CROP_SIZE = parseInt(val);
@@ -2681,8 +2918,8 @@
                 // 2. Compile on backend
                 btn.innerHTML = '<span class="spinner"></span>Converting...';
                 setStatus('Converting: sending model to backend for ONNX → .kmodel (1–2 min)...');
-                console.log('[DEPLOY] Backend URL:', getBackendUrl());
-                console.log('[DEPLOY] Sending to:', getBackendUrl() + '/convert');
+                console.log('[DEPLOY] Backend URL:', await discoverBackend());
+                console.log('[DEPLOY] Sending to:', (await discoverBackend()) + '/convert');
                 
                 const resp = await postToBackend('convert', formData);
 
@@ -2716,6 +2953,28 @@
                     }
                     setStatus('✅ Wi-Fi deployment complete!');
                     alert(`✅ Successfully deployed to K230 via Wi-Fi (${ip})!\n\nFiles saved to /sdcard/kmodel`);
+
+                // 3a-2. Online Wi-Fi deploy (K230 on the same router network)
+                } else if (method === 'online') {
+                    const ip = document.getElementById('onlineIpInput').value.trim();
+                    const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+                    if (!ip) { alert('Enter the K230 board IP (use Auto-Detect or Ping to find it).'); setStatus('Deploy failed: no IP.'); return; }
+                    const url = `http://${ip}:${pt}/upload`;
+                    setStatus(`Pushing to K230 via Online Wi-Fi (${ip}:${pt})...`);
+                    try {
+                        const r1 = await fetch(url, { method: 'POST', headers: { 'X-Filename': 'model.kmodel' }, body: kmodelBlob });
+                        if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
+                        await sleep(1500);
+                        const r2 = await fetch(url, { method: 'POST', headers: { 'X-Filename': 'labels.txt' }, body: labelsBlob });
+                        if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
+                    } catch (pushErr) {
+                        alert(`❌ Failed to connect to K230 at ${ip}:${pt}.\n\nEnsure:\n` +
+                            `1) K230 is connected to the same Wi-Fi network/router as this PC\n` +
+                            `2) K230 is running the Wi-Fi receiver script (STA mode)\n\nError: ${pushErr.message}`);
+                        setStatus('Deploy failed: K230 unreachable.'); return;
+                    }
+                    setStatus('✅ Online Wi-Fi deployment complete!');
+                    alert(`✅ Successfully deployed to K230 via Online Wi-Fi (${ip})!\n\nFiles saved to /sdcard/kmodel`);
 
                 // 3b. USB deploy
                 } else if (method === 'usb') {
@@ -3176,7 +3435,7 @@
                 };
 
                 // ── Step 4: send to /convert-esp32-lite → INT8 TFLite ───────────
-                const convertServer = getBackendUrl();
+                const convertServer = await discoverBackend();
 
                 const formData = new FormData();
                 formData.append('model_json',

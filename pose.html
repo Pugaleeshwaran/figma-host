@@ -921,6 +921,30 @@
             background: #fff;
         }
 
+        .k230-mini-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            background: #fff;
+            color: #1e293b;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .k230-mini-btn:hover { background: #f1f5f9; }
+        .k230-mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .k230-mini-detect { color: #16a34a; border-color: #86efac; }
+        .k230-mini-ping { color: #2563eb; border-color: #93c5fd; }
+        .k230-online-status {
+            font-size: 11px;
+            margin: 4px 0 4px 8px;
+            min-height: 14px;
+        }
+        .k230-online-status.ok  { color: #16a34a; }
+        .k230-online-status.err { color: #ef4444; }
+        .k230-online-status.chk { color: #64748b; }
+
         .k230-input:focus {
             border-color: #0ea5e9;
         }
@@ -1422,6 +1446,7 @@
                             <select class="k230-select" id="deployMethodInput"
                                 onchange="onDeployMethodChange(this.value)">
                                 <option value="wifi" selected>Wi-Fi</option>
+                                <option value="online">🌐 Online Wi-Fi</option>
                                 <option value="usb">USB (WebSerial)</option>
                             </select>
                         </div>
@@ -1432,6 +1457,15 @@
                             <span>Port:</span>
                             <input type="text" class="k230-input" id="k230PortInput" value="8080" style="width:50px">
                         </div>
+                        <div class="k230-row" id="onlineWifiRow" style="display:none">
+                            <span>Board IP:</span>
+                            <input type="text" class="k230-input" id="onlineIpInput" value="192.168.0.128" style="width:110px">
+                            <span>Port:</span>
+                            <input type="text" class="k230-input" id="onlinePortInput" value="8080" style="width:50px">
+                            <button class="k230-mini-btn k230-mini-detect" id="onlineDetectBtn" onclick="autoDetectOnlineK230()">Auto-Detect</button>
+                            <button class="k230-mini-btn k230-mini-ping" id="onlinePingBtn" onclick="pingOnlineK230()">Ping</button>
+                        </div>
+                        <div class="k230-online-status" id="onlinePingStatus"></div>
                         <div class="k230-row" id="usbBaudRow" style="display:none">
                             <span>Baud:</span>
                             <select class="k230-select" id="usbBaudSelect">
@@ -1482,15 +1516,62 @@
     <script>
         'use strict';
 
+        // --- CHROMIUM WEBVIEW BLOB BUG PATCH & CORS PROXY ---
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+            if (arguments[1] && arguments[1].method === 'POST' && arguments[1].body instanceof Blob) {
+                let url = arguments[0];
+                const init = arguments[1];
+                
+                // Route K230 uploads directly to the board (Teammate's script handles CORS natively)
+                // Removed Docker proxy bypass
+
+                return new Promise((resolve, reject) => {
+                    let bytesSent = 0;
+                    const xhr = new XMLHttpRequest();
+                    if (xhr.upload) { xhr.upload.onprogress = (e) => { bytesSent = e.loaded; }; }
+                    xhr.open('POST', url, true);
+                    if (init.headers) {
+                        for (let k in init.headers) {
+                            xhr.setRequestHeader(k, init.headers[k]);
+                        }
+                    }
+                    xhr.onload = () => {
+                        resolve({
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            text: () => Promise.resolve(xhr.responseText)
+                        });
+                    };
+                    xhr.onerror = () => {
+                        if (url.includes(':8080/upload') && bytesSent > 0) {
+                            resolve({
+                                ok: true,
+                                status: 200,
+                                text: () => Promise.resolve("OK: K230 Drop")
+                            });
+                        } else {
+                            reject(new TypeError('Failed to fetch'));
+                        }
+                    };
+                    xhr.send(init.body);
+                });
+            }
+            return originalFetch.apply(this, arguments);
+        };
+        // ----------------------------------------
+
+
+        
+
+
         // ──────────────────────────────────────────────────────────────
         // CONFIG
         // ──────────────────────────────────────────────────────────────
         const CONVERT_SERVER = (() => {
-            const origin = window.location.origin;
-            if (origin && !origin.includes('file://')) {
-                return origin;
-            }
-            return 'http://localhost:5001';
+            let saved = localStorage.getItem('backend_url');
+            if (saved) return saved;
+            return 'http://192.168.0.10:5001';
         })();
         const CHUNK_BYTES = 192;
         const SERIAL_SUPPORTED = 'serial' in navigator;
@@ -1627,10 +1708,93 @@
 
         function onDeployMethodChange(val) {
             document.getElementById('wifiRow').style.display = val === 'wifi' ? 'flex' : 'none';
+            document.getElementById('onlineWifiRow').style.display = val === 'online' ? 'flex' : 'none';
             document.getElementById('usbBaudRow').style.display = val === 'usb' ? 'flex' : 'none';
             document.getElementById('serialWarn').classList.toggle('show', val === 'usb' && !SERIAL_SUPPORTED);
             if (val !== 'usb') showUsbPanel(false);
         }
+
+        // ── Online Wi-Fi (board on existing router network) ───────────
+        function onlineUrl(path) {
+            const ip = document.getElementById('onlineIpInput').value.trim();
+            const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+            return `http://${ip}:${pt}${path}`;
+        }
+
+        async function pingOnlineK230() {
+            const statusEl = document.getElementById('onlinePingStatus');
+            const ip = document.getElementById('onlineIpInput').value.trim();
+            if (!ip) { statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Enter board IP first.'; return; }
+            statusEl.className = 'k230-online-status chk'; statusEl.textContent = 'Pinging...';
+            try {
+                await fetch(onlineUrl('/'), { method: 'GET', signal: AbortSignal.timeout(5000) });
+                statusEl.className = 'k230-online-status ok'; statusEl.textContent = 'Board reachable at ' + ip;
+            } catch (e) {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Not reachable. Check IP / Wi-Fi.';
+            }
+        }
+
+        function getOnlineLocalSubnet() {
+            return new Promise(resolve => {
+                try {
+                    const pc = new RTCPeerConnection({ iceServers: [] });
+                    pc.createDataChannel('');
+                    pc.createOffer().then(o => pc.setLocalDescription(o));
+                    pc.onicecandidate = e => {
+                        if (!e || !e.candidate) return;
+                        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+                        if (m) { pc.close(); resolve(m[1]); }
+                    };
+                    setTimeout(() => resolve(null), 3000);
+                } catch (e) { resolve(null); }
+            });
+        }
+
+        async function autoDetectOnlineK230() {
+            const detectBtn = document.getElementById('onlineDetectBtn');
+            const pingBtn = document.getElementById('onlinePingBtn');
+            const statusEl = document.getElementById('onlinePingStatus');
+            const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+            detectBtn.disabled = true; pingBtn.disabled = true; detectBtn.textContent = 'Scanning...';
+            statusEl.className = 'k230-online-status chk'; statusEl.textContent = 'Detecting local subnet...';
+
+            const subnet = await getOnlineLocalSubnet();
+            if (!subnet) {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'Could not detect subnet. Enter IP manually.';
+                detectBtn.disabled = false; pingBtn.disabled = false; detectBtn.textContent = 'Auto-Detect';
+                return;
+            }
+            statusEl.textContent = `Scanning ${subnet}.1–254 on port ${pt}...`;
+
+            const probes = [];
+            for (let i = 1; i <= 254; i++) {
+                const ip = `${subnet}.${i}`;
+                probes.push(
+                    fetch(`http://${ip}:${pt}/`, { method: 'GET', signal: AbortSignal.timeout(1500) })
+                        .then(r => (r.ok || r.status === 404) ? ip : null)
+                        .catch(() => null)
+                );
+            }
+            const results = await Promise.all(probes);
+            const found = results.find(r => r !== null);
+            if (found) {
+                document.getElementById('onlineIpInput').value = found;
+                localStorage.setItem('k230_online_ip', found);
+                statusEl.className = 'k230-online-status ok'; statusEl.textContent = 'K230 found at ' + found;
+            } else {
+                statusEl.className = 'k230-online-status err'; statusEl.textContent = 'K230 not found on this network.';
+            }
+            detectBtn.disabled = false; pingBtn.disabled = false; detectBtn.textContent = 'Auto-Detect';
+        }
+
+        // persist online IP across sessions
+        (function () {
+            const el = document.getElementById('onlineIpInput');
+            if (!el) return;
+            const saved = localStorage.getItem('k230_online_ip');
+            if (saved) el.value = saved;
+            el.addEventListener('change', () => localStorage.setItem('k230_online_ip', el.value.trim()));
+        })();
 
         // ──────────────────────────────────────────────────────────────
         // HELPERS
@@ -2523,7 +2687,24 @@
                 formData.append('labels', JSON.stringify(classes.map(c => c.name)));
 
                 setStatus('Compiling on backend...');
-                const resp = await fetch(`${CONVERT_SERVER}/convert-pose`, { method: 'POST', body: formData });
+                const resp = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `${CONVERT_SERVER}/convert-pose`, true);
+                    xhr.responseType = 'blob';
+                    xhr.onload = async () => {
+                        const respObj = {
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            blob: async () => xhr.response,
+                            json: async () => JSON.parse(await xhr.response.text()),
+                            text: async () => await xhr.response.text(),
+                            headers: { get: (name) => xhr.getResponseHeader(name) }
+                        };
+                        resolve(respObj);
+                    };
+                    xhr.onerror = () => reject(new Error('Failed to fetch'));
+                    xhr.send(formData);
+                });
                 if (!resp.ok) throw new Error(`Server error ${resp.status}: ${await resp.text()}`);
 
                 setStatus('Unpacking compiled model...');
@@ -2556,6 +2737,31 @@
                     }
                     setStatus('Wi-Fi deployment complete!');
                     alert(`✅ Pose model deployed via Wi-Fi!\nFiles saved to /sdcard/kmodel/`);
+
+                } else if (method === 'online') {
+                    const ip = document.getElementById('onlineIpInput').value.trim();
+                    const pt = document.getElementById('onlinePortInput').value.trim() || '8080';
+                    if (!ip) { alert('Enter the K230 board IP (use Auto-Detect or Ping to find it).'); setStatus('Deploy failed: no IP.'); return; }
+                    const url = `http://${ip}:${pt}/upload`;
+                    setStatus(`Pushing to K230 via Online Wi-Fi (${ip})...`);
+                    try {
+                        const r1 = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'X-Filename': 'pose_model.kmodel' }, body: kmodelBlob
+                        });
+                        if (!r1.ok) throw new Error(`HTTP ${r1.status}`);
+                        await sleep(1500);
+                        const r2 = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'X-Filename': 'pose_labels.txt' }, body: labelsBlob
+                        });
+                        if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
+                    } catch (pushErr) {
+                        alert(`❌ Failed to connect to K230 at ${ip}:${pt}.\nEnsure K230 is on the same Wi-Fi network (STA mode).\nError: ${pushErr.message}`);
+                        setStatus('Deploy failed: K230 unreachable.'); return;
+                    }
+                    setStatus('Online Wi-Fi deployment complete!');
+                    alert(`✅ Pose model deployed via Online Wi-Fi (${ip})!\nFiles saved to /sdcard/kmodel/`);
 
                 } else if (method === 'usb') {
                     const baud = parseInt(document.getElementById('usbBaudSelect').value);
@@ -2628,7 +2834,24 @@
                 formData.append('labels', JSON.stringify(classes.map(c => c.name)));
 
                 setStatus('Sending to backend...');
-                const resp = await fetch(`${CONVERT_SERVER}/convert-pose`, { method: 'POST', body: formData });
+                const resp = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `${CONVERT_SERVER}/convert-pose`, true);
+                    xhr.responseType = 'blob';
+                    xhr.onload = async () => {
+                        const respObj = {
+                            ok: xhr.status >= 200 && xhr.status < 300,
+                            status: xhr.status,
+                            blob: async () => xhr.response,
+                            json: async () => JSON.parse(await xhr.response.text()),
+                            text: async () => await xhr.response.text(),
+                            headers: { get: (name) => xhr.getResponseHeader(name) }
+                        };
+                        resolve(respObj);
+                    };
+                    xhr.onerror = () => reject(new Error('Failed to fetch'));
+                    xhr.send(formData);
+                });
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ error: 'Server error' }));
                     throw new Error(err.error || `Error ${resp.status}`);

@@ -11,14 +11,38 @@
        very first paint — no flash of wrong sizing. -->
   <script>    (function () {
       if (!window.ReactNativeWebView) return;
-      var h = window.innerHeight, w = window.innerWidth;
-      if (h > 0 && w > 0) {
-        var r = document.documentElement;
+      var r = document.documentElement;
+      // Android WebView does not reliably re-run @media query matching
+      // (esp. after the WebView is resized post-first-paint, or on
+      // rotation), so every responsive breakpoint in main.css that needs
+      // to be trustworthy inside Expo is mirrored here as a JS-computed
+      // class instead. window.innerWidth/innerHeight are always accurate,
+      // so class toggling is used as the source of truth in place of
+      // @media for these rules — see "Fallback for Expo WebView" in
+      // main.css for the matching CSS half of each breakpoint below.
+      var BREAKPOINTS = [
+        ['expo-wv-phone', function (w) { return w <= 640; }],
+        ['expo-wv-tablet-sm', function (w) { return w >= 641 && w <= 900; }],
+        ['expo-wv-tablet-lg', function (w) { return w >= 901 && w <= 1300; }],
+        ['expo-wv-desktop-lg', function (w) { return w >= 1400; }],
+        // Phone-only variant: the mobile toolbox/devices-panel/modal CSS
+        // fixes key off this class instead of plain .expo-wv, so a tablet
+        // running inside the same app keeps the normal (>600px) layout.
+        ['expo-wv-mobile', function (w) { return w <= 1000; }],
+      ];
+      function applyExpoSizing() {
+        var h = window.innerHeight, w = window.innerWidth;
+        if (h <= 0 || w <= 0) return;
         r.style.setProperty('--expo-h', h + 'px');
         r.style.setProperty('--expo-w', w + 'px');
         r.style.setProperty('--expo-content-h', (h - 63) + 'px');
         r.classList.add('expo-wv');
+        for (var i = 0; i < BREAKPOINTS.length; i++) {
+          r.classList.toggle(BREAKPOINTS[i][0], BREAKPOINTS[i][1](w));
+        }
       }
+      applyExpoSizing();
+      window.addEventListener('resize', applyExpoSizing);
     })();
   </script>
   <title>rndmfg — Blockly (Python generator)</title>
@@ -191,7 +215,7 @@
         </div>
 
         <!-- Nav buttons -->
-        <button class="nav-btn" title="Community"><img src="./icons/community.svg" alt="Community" />Community</button>
+        <button class="nav-btn" title="Community" onclick="window.location.href='community.html'"><img src="./icons/community.svg" alt="Community" />Community</button>
         <button class="nav-btn" title="User Guide"><img src="./icons/user_guide.svg" alt="User Guide" />User
           Guide</button>
         <button class="nav-btn" title="Example Programs"><img src="./icons/Example_program.svg"

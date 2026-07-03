@@ -90,6 +90,8 @@
     /* ── LOGO — separate clickable element ── */
     .topbar-logo-wrap {
       position: relative;
+      display: flex;
+      align-items: center;
     }
 
     .topbar-logo {
@@ -479,6 +481,12 @@
       background: rgba(255, 255, 255, 0.28);
     }
 
+    .nav-btn.active {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
     /* ── Avatar circle ── */
     .topbar-avatar {
       width: 34px;
@@ -489,14 +497,17 @@
       cursor: pointer;
       flex-shrink: 0;
       margin-left: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
     }
 
     .topbar-avatar img {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
       object-fit: cover;
-
+      border-radius: 50%;
     }
 
     .btns {
@@ -730,7 +741,7 @@
       border-radius: 18px;
       box-shadow: 0 4px 24px rgba(23, 46, 56, 0.18), 0 1px 4px rgba(0, 0, 0, 0.08);
       padding: 8px 10px;
-      z-index: 2100;
+      z-index: 999;
       /* above settings backdrop (1999) so btns stay clickable */
       white-space: nowrap;
       pointer-events: all;
@@ -2995,7 +3006,7 @@
     .toolbox-toggle-btn {
       display: flex;
       position: fixed;
-      top: 63% !important;
+      top: 75% !important;
       left: 193px;
       transform: translateY(-50%);
       z-index: 9999;
@@ -3081,6 +3092,67 @@
       }
     }
 
+    /* Fallback for Expo WebView — same rules as the (max-width: 640px)
+       block above, keyed off the JS-computed class from index.html
+       instead of @media, since @media doesn't reliably apply here. */
+    html.expo-wv-phone .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 52px 1fr;
+    }
+
+    html.expo-wv-phone .topbar {
+      padding: 0 10px;
+      border-radius: 0;
+      height: 52px;
+      margin: -8px -8px 0 -8px;
+    }
+
+    html.expo-wv-phone .topbar-logo {
+      font-size: 13px;
+      padding: 4px 6px;
+    }
+
+    html.expo-wv-phone .nav-btn {
+      padding: 4px 7px;
+      font-size: 11px;
+      gap: 3px;
+    }
+
+    html.expo-wv-phone .btn-circle {
+      width: 32px;
+      height: 32px;
+      font-size: 13px;
+    }
+
+    html.expo-wv-phone .rail {
+      padding: 8px 4px;
+      gap: 7px;
+      border-radius: 18px;
+    }
+
+    html.expo-wv-phone .button-86 {
+      width: 54px;
+      font-size: 12px;
+    }
+
+    html.expo-wv-phone .button-87 {
+      padding: 7px 14px;
+      font-size: 12px;
+    }
+
+    html.expo-wv-phone .main {
+      grid-template-columns: 1fr;
+    }
+
+    html.expo-wv-phone #codePanel,
+    html.expo-wv-phone .code {
+      display: none !important;
+    }
+
+    html.expo-wv-phone .toolbox-toggle-btn {
+      display: flex;
+    }
+
     /* Tablets (641–900px) */
     @media (min-width: 641px) and (max-width: 900px) {
       .app {
@@ -3140,6 +3212,65 @@
       }
     }
 
+    /* Fallback for Expo WebView — mirrors the (min-width: 641px) and
+       (max-width: 900px) block above; see the phone fallback comment
+       earlier in this file for why this exists. */
+    html.expo-wv-tablet-sm .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    html.expo-wv-tablet-sm .topbar {
+      height: 56px;
+      padding: 6px 10px;
+      gap: 4px;
+    }
+
+    html.expo-wv-tablet-sm .topbar-left {
+      gap: 5px;
+    }
+
+    html.expo-wv-tablet-sm .topbar-right {
+      gap: 4px;
+    }
+
+    html.expo-wv-tablet-sm .nav-btn {
+      font-size: 0;
+      padding: 6px 8px;
+      min-width: unset;
+      width: 32px;
+      height: 32px;
+      justify-content: center;
+    }
+
+    html.expo-wv-tablet-sm .nav-btn i {
+      font-size: 15px;
+    }
+
+    html.expo-wv-tablet-sm #bt-text-topbar {
+      display: none;
+    }
+
+    html.expo-wv-tablet-sm .main {
+      grid-template-columns: 68% 32%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    html.expo-wv-tablet-sm .workspace {
+      height: 100%;
+      min-height: 0;
+    }
+
+    html.expo-wv-tablet-sm .btn-circle {
+      width: 30px;
+      height: 30px;
+      font-size: 13px;
+    }
+
     /* Large desktop (> 1400px) */
     @media (min-width: 1400px) {
       .app {
@@ -3149,6 +3280,14 @@
       .main {
         grid-template-columns: 80% 20%;
       }
+    }
+
+    html.expo-wv-desktop-lg .app {
+      grid-template-columns: 1fr;
+    }
+
+    html.expo-wv-desktop-lg .main {
+      grid-template-columns: 80% 20%;
     }
 
     /* Medium tablets / landscape tablets (901px – 1300px) */
@@ -3188,6 +3327,42 @@
         height: 32px;
         font-size: 14px;
       }
+    }
+
+    html.expo-wv-tablet-lg .nav-btn {
+      gap: 0px;
+      font-size: 0;
+      padding: 6px 8px;
+      min-width: unset;
+      width: 32px;
+      height: 32px;
+      justify-content: center;
+    }
+
+    html.expo-wv-tablet-lg .nav-btn i {
+      font-size: 14px;
+    }
+
+    html.expo-wv-tablet-lg #bt-text-topbar {
+      display: none;
+    }
+
+    html.expo-wv-tablet-lg .topbar {
+      padding: 8px 14px;
+    }
+
+    html.expo-wv-tablet-lg .topbar-left {
+      gap: 6px;
+    }
+
+    html.expo-wv-tablet-lg .topbar-right {
+      gap: 5px;
+    }
+
+    html.expo-wv-tablet-lg .btn-circle {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
     }
 
     .led_style>.blocklyPath:first-of-type {
@@ -6499,7 +6674,8 @@
     .blocklyToolboxDiv {
       left: 10px !important;
       top: 10px !important;
-      height: 79% !important;
+      height: 77% !important;
+      max-height: 77% !important;
       border-radius: 10px !important;
       position: absolute !important;
       width: 205px !important;
@@ -6611,7 +6787,7 @@
     #showCode {
       position: absolute !important;
       z-index: 1001 !important;
-      top: 50% !important;
+      top: 10% !important;
       transform: translateY(-50%) !important;
       right: 395px !important;
       /* Attached to panel left edge when shown (400 + 15) */
@@ -6663,8 +6839,10 @@
       position: absolute !important;
       width: 205px !important;
       left: 8px !important;
+      max-height: 140px !important;
+      overflow-y: auto !important;
       /* bottom: 8px !important; */
-      z-index: 120 !important;
+      z-index: 999 !important;
       background: #fff !important;
       border-radius: 20px !important;
       border: 1px solid #E2E8F0 !important;
@@ -6833,6 +7011,8 @@
       width: 72px !important;
       min-width: 72px !important;
       max-width: 72px !important;
+      height: auto !important;
+      max-height: none !important;
       padding: 12px 8px 12px 8px !important;
       display: flex !important;
       flex-direction: column !important;
@@ -7374,7 +7554,7 @@
       margin: 2px 8px !important;
       position: relative !important;
       transition: background .13s !important;
-      min-height: 52px !important;
+      min-height: 45px !important;
       box-sizing: border-box !important;
     }
 
@@ -7914,6 +8094,7 @@
       background: #FFEAD2;
       color: #C27D38;
     }
+
     body.dark-mode .card-sensors .term-card-header {
       background: #452b15;
       color: #f7a24a;
@@ -7923,6 +8104,7 @@
       background: #DCE6FF;
       color: #3D5AE0;
     }
+
     body.dark-mode .card-variables .term-card-header {
       background: #172554;
       color: #93c5fd;
@@ -7932,6 +8114,7 @@
       background: #F1F5F9;
       color: #475569;
     }
+
     body.dark-mode .card-output .term-card-header {
       background: #334155;
       color: #cbd5e1;
@@ -8167,4 +8350,397 @@
       background: #475569;
       color: #f8fafc;
       border-color: #475569;
-    }
+    }
+
+    /* -- Mobile Fixes for Toolbox and Devices Panel Overlap --
+       The toolbox and the devices panel are two independent floating
+       cards, sized independently so they can never collide:
+       - Toolbox is capped at 60% of the workspace height, leaving a
+         large buffer underneath.
+       - Devices panel uses a small FIXED pixel height/width (not a
+         percentage), so its size never depends on — or has to match —
+         the toolbox's size. */
+    @media screen and (max-width: 1000px) {
+      .blocklyToolboxDiv, .blocklyToolbox {
+        height: 60% !important;
+        max-height: 60% !important;
+        width: 205px !important;
+        min-width: 205px !important;
+        max-width: 205px !important;
+      }
+
+      .blocklyToolbox .blocklyToolboxCategory {
+        min-height: 30px !important;
+      }
+
+      .figma-tb-header {
+        padding: 5px 15px !important;
+      }
+
+      .blocklyToolboxDiv .blocklyToolboxCategory {
+        margin: 1px 4px !important;
+        padding: 4px !important;
+      }
+
+      .blocklyToolboxCategoryLabel {
+        font-size: 10px !important;
+      }
+
+      .figma-cat-icon {
+        width: 20px !important;
+        height: 20px !important;
+        margin-right: 4px !important;
+      }
+
+      .figma-cat-icon img {
+        width: 20px !important;
+        height: 20px !important;
+      }
+
+      #devices-panel {
+        max-height: 120px !important;
+        height: auto !important;
+        overflow-y: auto !important;
+        width: 205px !important;
+        padding: 4px !important;
+        border-radius: 10px !important;
+      }
+
+      .dp-header {
+        margin-bottom: 4px !important;
+        padding: 5px 10px !important;
+      }
+
+      .dp-hd-icon {
+        width: 25px !important;
+        height: 25px !important;
+        min-width: 25px !important;
+      }
+
+      .dp-hd-icon img {
+        width: 25px !important;
+        height: 25px !important;
+      }
+
+      .dp-hd-label {
+        font-size: 10px !important;
+      }
+
+      .dp-name {
+        font-size: 10px !important;
+      }
+
+      .dp-status {
+        font-size: 8px !important;
+      }
+
+      .dp-state-icon {
+        width: 15px !important;
+        height: 15px !important;
+      }
+
+      .dp-card {
+        padding: 6px !important;
+        gap: 6px !important;
+      }
+
+      .dp-thumb {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+      }
+
+      /* -- Collapsed toolbox icon rail + collapsed devices card: smaller,
+         with a shorter rail height so a visible gap remains above the
+         devices card on short mobile screens -- */
+      #toolbox-icon-panel {
+        height: 48% !important;
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+
+      /* Toggle button is fixed at 75% of the viewport by default — that's
+         well past this shorter rail's bottom edge on mobile, so pull it
+         up to roughly the rail's vertical center. */
+      .toolbox-toggle-btn {
+        top: 36% !important;
+      }
+
+      #devices-panel.dp-collapsed {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+        padding: 10px 6px !important;
+        gap: 6px !important;
+      }
+
+      #devices-panel.dp-collapsed .dp-card {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        border-radius: 10px !important;
+      }
+
+      #devices-panel.dp-collapsed .dp-hd-icon {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+      }
+
+      #devices-panel.dp-collapsed .dp-hd-icon img {
+        width: 30px !important;
+        height: 30px !important;
+      }
+
+      #devices-panel.dp-collapsed .dp-state-icon {
+        width: 15px !important;
+        height: 15px !important;
+        min-width: 15px !important;
+      }
+
+      /* -- Add Device modal: compact for mobile -- */
+      .adm-popup {
+        width: 320px !important;
+        padding: 16px 16px 14px !important;
+      }
+
+      .adm-title {
+        font-size: 15px !important;
+      }
+
+      .adm-close-btn {
+        width: 26px !important;
+        height: 26px !important;
+      }
+
+      .adm-divider {
+        margin-bottom: 12px !important;
+      }
+
+      .adm-sub {
+        font-size: 11px !important;
+        margin: 0 0 12px !important;
+      }
+
+      .adm-card {
+        padding: 12px 8px 12px 14px !important;
+        border-radius: 12px !important;
+      }
+
+      .adm-card-title {
+        font-size: 14px !important;
+        margin: 0 0 3px !important;
+      }
+
+      .adm-card-desc {
+        font-size: 10.5px !important;
+        max-width: 130px !important;
+        margin: 0 0 10px !important;
+      }
+
+      .adm-card-btn {
+        padding: 7px 14px !important;
+        font-size: 11px !important;
+      }
+
+      .adm-card-img {
+        width: 56px !important;
+        height: 56px !important;
+      }
+
+      .adm-or-row {
+        margin: 10px 0 !important;
+        font-size: 10px !important;
+      }
+    }
+
+    /* Fallback for Expo WebView */
+    html.expo-wv-mobile .blocklyToolboxDiv,
+    html.expo-wv-mobile .blocklyToolbox {
+      height: 60% !important;
+      max-height: 60% !important;
+      width: 205px !important;
+      min-width: 205px !important;
+      max-width: 205px !important;
+    }
+
+    html.expo-wv-mobile .blocklyToolboxDiv .blocklyToolboxCategory {
+      margin: 1px 4px !important;
+      padding: 4px !important;
+    }
+
+    html.expo-wv-mobile .blocklyToolboxCategoryLabel {
+      font-size: 10px !important;
+    }
+
+    html.expo-wv-mobile .figma-cat-icon {
+      width: 20px !important;
+      height: 20px !important;
+      margin-right: 4px !important;
+    }
+
+    html.expo-wv-mobile .figma-cat-icon img {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    html.expo-wv-mobile #devices-panel {
+      max-height: 120px !important;
+      height: auto !important;
+      overflow-y: auto !important;
+      width: 205px !important;
+      padding: 4px !important;
+      border-radius: 10px !important;
+    }
+
+    /* Collapsed state must win over the rule above (it's more specific
+       anyway, but spelled out here to be explicit and robust). */
+    html.expo-wv-mobile #devices-panel.dp-collapsed {
+      width: 72px !important;
+    }
+
+    html.expo-wv-mobile .dp-header {
+      margin-bottom: 4px !important;
+      padding: 5px 10px !important;
+    }
+
+    html.expo-wv-mobile .dp-hd-icon {
+      width: 25px !important;
+      height: 25px !important;
+      min-width: 25px !important;
+    }
+
+    html.expo-wv-mobile .dp-hd-icon img {
+      width: 25px !important;
+      height: 25px !important;
+    }
+
+    html.expo-wv-mobile .dp-hd-label {
+      font-size: 10px !important;
+    }
+
+    html.expo-wv-mobile .dp-name {
+      font-size: 10px !important;
+    }
+
+    html.expo-wv-mobile .dp-status {
+      font-size: 8px !important;
+    }
+
+    html.expo-wv-mobile .dp-state-icon {
+      width: 15px !important;
+      height: 15px !important;
+    }
+
+    html.expo-wv-mobile .dp-card {
+      padding: 6px !important;
+      gap: 6px !important;
+    }
+
+    html.expo-wv-mobile .dp-thumb {
+      width: 24px !important;
+      height: 24px !important;
+      min-width: 24px !important;
+    }
+
+    /* -- Collapsed toolbox icon rail + collapsed devices card: smaller,
+       with a shorter rail height so a visible gap remains above the
+       devices card on short mobile screens -- */
+    html.expo-wv-mobile #toolbox-icon-panel {
+      height: 48% !important;
+      width: 60px !important;
+      min-width: 60px !important;
+      max-width: 60px !important;
+    }
+
+    html.expo-wv-mobile .toolbox-toggle-btn {
+      top: 36% !important;
+    }
+
+    html.expo-wv-mobile #devices-panel.dp-collapsed {
+      width: 60px !important;
+      min-width: 60px !important;
+      max-width: 60px !important;
+      padding: 10px 6px !important;
+      gap: 6px !important;
+    }
+
+    html.expo-wv-mobile #devices-panel.dp-collapsed .dp-card {
+      width: 30px !important;
+      height: 30px !important;
+      min-width: 30px !important;
+      border-radius: 10px !important;
+    }
+
+    html.expo-wv-mobile #devices-panel.dp-collapsed .dp-hd-icon {
+      width: 30px !important;
+      height: 30px !important;
+      min-width: 30px !important;
+    }
+
+    html.expo-wv-mobile #devices-panel.dp-collapsed .dp-hd-icon img {
+      width: 30px !important;
+      height: 30px !important;
+    }
+
+    html.expo-wv-mobile #devices-panel.dp-collapsed .dp-state-icon {
+      width: 18px !important;
+      height: 18px !important;
+      min-width: 18px !important;
+    }
+
+    /* -- Add Device modal: compact for mobile -- */
+    html.expo-wv-mobile .adm-popup {
+      width: 320px !important;
+      padding: 16px 16px 14px !important;
+    }
+
+    html.expo-wv-mobile .adm-title {
+      font-size: 15px !important;
+    }
+
+    html.expo-wv-mobile .adm-close-btn {
+      width: 26px !important;
+      height: 26px !important;
+    }
+
+    html.expo-wv-mobile .adm-divider {
+      margin-bottom: 12px !important;
+    }
+
+    html.expo-wv-mobile .adm-sub {
+      font-size: 11px !important;
+      margin: 0 0 12px !important;
+    }
+
+    html.expo-wv-mobile .adm-card {
+      padding: 12px 8px 12px 14px !important;
+      border-radius: 12px !important;
+    }
+
+    html.expo-wv-mobile .adm-card-title {
+      font-size: 14px !important;
+      margin: 0 0 3px !important;
+    }
+
+    html.expo-wv-mobile .adm-card-desc {
+      font-size: 10.5px !important;
+      max-width: 130px !important;
+      margin: 0 0 10px !important;
+    }
+
+    html.expo-wv-mobile .adm-card-btn {
+      padding: 7px 14px !important;
+      font-size: 11px !important;
+    }
+
+    html.expo-wv-mobile .adm-card-img {
+      width: 56px !important;
+      height: 56px !important;
+    }
+
+    html.expo-wv-mobile .adm-or-row {
+      margin: 10px 0 !important;
+      font-size: 10px !important;
+    }
