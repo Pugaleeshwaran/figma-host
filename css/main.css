@@ -8361,7 +8361,18 @@
          percentage), so its size never depends on — or has to match —
          the toolbox's size. */
     @media screen and (max-width: 1000px) {
-      .blocklyToolboxDiv, .blocklyToolbox {
+      .search-empty-img {
+        width: 90px !important;
+      }
+      .search-empty-title {
+        font-size: 14px !important;
+      }
+      .search-empty-sub {
+        font-size: 11px !important;
+      }
+
+      .blocklyToolboxDiv,
+      .blocklyToolbox {
         height: 60% !important;
         max-height: 60% !important;
         width: 205px !important;
@@ -8370,7 +8381,7 @@
       }
 
       .blocklyToolbox .blocklyToolboxCategory {
-        min-height: 30px !important;
+        min-height: 35px !important;
       }
 
       .figma-tb-header {
@@ -8556,6 +8567,16 @@
     }
 
     /* Fallback for Expo WebView */
+    html.expo-wv-mobile .search-empty-img {
+      width: 90px !important;
+    }
+    html.expo-wv-mobile .search-empty-title {
+      font-size: 14px !important;
+    }
+    html.expo-wv-mobile .search-empty-sub {
+      font-size: 11px !important;
+    }
+
     html.expo-wv-mobile .blocklyToolboxDiv,
     html.expo-wv-mobile .blocklyToolbox {
       height: 60% !important;
@@ -8565,9 +8586,11 @@
       max-width: 205px !important;
     }
 
-    html.expo-wv-mobile .blocklyToolboxDiv .blocklyToolboxCategory {
+    html.expo-wv-mobile .blocklyToolboxDiv .blocklyToolboxCategory,
+    html.expo-wv-mobile .blocklyToolbox .blocklyToolboxCategory {
       margin: 1px 4px !important;
       padding: 4px !important;
+      min-height: 35px !important;
     }
 
     html.expo-wv-mobile .blocklyToolboxCategoryLabel {
