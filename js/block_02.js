@@ -3428,7 +3428,25 @@ function defineBlocks() {
       nextStatement: null,
       extensions: ["motor_image_click", "pwm_color"]
     },
-    { type: "do_dc_motor2", message0: "DC Motor %1 %2 %3", args0: [{ type: "field_image", name: "IMG", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15 }, { type: "field_label", name: "MOTORS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"], ["turn left", "turn left"], ["turn right", "turn right"]] }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["motor_image_click2", "pwm_color"] },
+    {
+      type: "do_dc_motor2",
+      message0: "DC Motor %1 %2 %3",
+      args0: [{
+        type: "field_image",
+        name: "IMG",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15
+      },
+      {
+        type: "field_label",
+        name: "MOTORS", text: ""
+      },
+      {
+        type: "field_dropdown",
+        name: "STATE",
+        options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"], ["turn left", "turn left"], ["turn right", "turn right"]]
+      }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["motor_image_click2", "pwm_color"]
+    },
     { type: "do_servo", message0: "servo on %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "SERVO_PORT", text: "" }, { type: "field_number", name: "ANG", value: 45, min: 0, max: 360, precision: 1 }], colour: "#F49E09", previousStatement: null, nextStatement: null, extensions: ["servo_image_click", "pwm_color"] },
     { type: "bt_send", message0: "Bluetooth send %1", args0: [{ type: "input_value", name: "TEXT" }], previousStatement: null, nextStatement: null, style: "control_blocks", extensions: ["servo_color"] },
     { type: "do_led", message0: "LED %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["ON", "1"], ["OFF", "0"]] }], colour: "#22C45D", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "leds_category_color"] },
@@ -3440,7 +3458,20 @@ function defineBlocks() {
     { type: "lp_repeat_count", message0: "repeat %1 %2 times", args0: [{ type: "field_number", name: "PIN" }, { type: "field_number", name: "COUNT", value: 4, min: 0, max: 100000 }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "lp_label", message0: "Print %1", args0: [{ type: "input_value", name: "NAME" }], previousStatement: null, nextStatement: null, extensions: ["dc_color"] },
     { type: "din_if_else", message0: "if %1", args0: [{ type: "input_value", name: "COND", check: "Boolean" }], message1: "do %1", args1: [{ type: "input_statement", name: "DO" }], message2: "else %1", args2: [{ type: "input_statement", name: "ELSE" }], previousStatement: null, nextStatement: null, extensions: ["logic_color"] },
-    { type: "din_sound", message0: "SOUND CELL %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
+    {
+      type: "din_sound",
+      message0: "SOUND CELL %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["digital_style", "port_image_click"]
+    },
     { type: "din_tilt", message0: "TILT %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_door", message0: "MAGNETIC SWITCH %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
     { type: "din_button", message0: "BUTTON %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["digital_style", "port_image_click"] },
@@ -3538,10 +3569,36 @@ function defineBlocks() {
     { type: "pressure", message0: "Pressure pin", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "compass", message0: "compass", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "ceprom", message0: "ceprom", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
-    { type: "speaker", message0: "Speaker", style: "control_blocks", output: "Boolean", extensions: ["digital_style"] },
-    { type: "rotation_sensor", message0: "Rotation Sensor", style: "control_blocks", output: "Boolean", extensions: ["digital_style"] },
+    {
+      type: "speaker",
+      message0: "Speaker %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["digital_style", "port_image_click"]
+    },
+    {
+      type: "rotation_sensor",
+      message0: "Rotation Sensor %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["digital_style", "port_image_click"]
+    },
     { type: "gsr_skin_current_sensor", message0: "GSR Skin Current Sensor", style: "control_blocks", output: "Boolean", extensions: ["digital_style"] },
-    {type: "line_follower", message0: "Line Follower", style: "control_blocks", output: "Boolean", extensions: ["digital_style"]},
+    { type: "line_follower", message0: "Line Follower", style: "control_blocks", output: "Boolean", extensions: ["digital_style"] },
 
     { type: "gusture", message0: "Gesture", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
     { type: "ir_temp", message0: "IR temp", style: "control_blocks", output: "Boolean", extensions: ["i2c_style"] },
@@ -3563,11 +3620,79 @@ function defineBlocks() {
       output: "Boolean",
       extensions: ["i2c_style"]
     },
-    { type: "water_level", message0: "Water Level", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
-    { type: "solor_panel", message0: "Solar Panel", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
-    { type: "admp", message0: "ADMP 401", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
-    { type: "uv_sensor_ana", message0: "UV Sensor Analog", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
-    {type:"ph_sensor", message0: "PH Sensor", style: "control_blocks", output: "Boolean", extensions: ["temp_style"]},
+    {
+      type: "water_level",
+      message0: "Water Level %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["temp_style", "led_pin_image_click"]
+    },
+    {
+      type: "solor_panel",
+      message0: "Solar Panel %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["temp_style", "led_pin_image_click"]
+    },
+    {
+      type: "admp",
+      message0: "ADMP 401 %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["temp_style", "led_pin_image_click"]
+    },
+    {
+      type: "uv_sensor_ana",
+      message0: "UV Sensor Analog %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["temp_style", "led_pin_image_click"]
+    },
+    {
+      type: "ph_sensor",
+      message0: "PH sensor %1 %2",
+      args0: [{
+        type: "field_image",
+        src: "./assets/img/Chips_Chips_Show.png",
+        width: 15, height: 15, alt: "",
+        name: "IMG"
+      },
+      { type: "field_label", name: "PORTS", text: "" }],
+      style: "control_blocks",
+      output: "Boolean",
+      extensions: ["temp_style", "led_pin_image_click"]
+    },
+    
+    
+    
     { type: "uv_sensor_dig", message0: "UV Sensor Digital", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
     { type: "seven_segment", message0: "Seven segment", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
     { type: "gas_sensor", message0: 'gas sensor', style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
@@ -4113,7 +4238,13 @@ function defineGenerators() {
     }
     return `async def start():\n${body}\n`;
   };
-  reg['do_dc_motor2'] = b => { const angle = b.getFieldValue('STATE') || 0; const ports = (b.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean); if (!ports.length) return '# Motor: no port\n'; if (ports.length === 1) return `await async_motor("${ports[0]}","${angle}")\n`; return `await async_motor(${ports.map(p => `"${p}"`).join(',')}, "${angle}")\n`; };
+  reg['do_dc_motor2'] = b => {
+    const angle = b.getFieldValue('STATE') || 0;
+    const ports = (b.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return '# Motor: no port\n';
+    if (ports.length === 1) return `await async_motor("${ports[0]}","${angle}")\n`;
+    return `await async_motor(${ports.map(p => `"${p}"`).join(',')}, "${angle}")\n`;
+  };
   reg['do_servo'] = b => {
     const ports = (b.getFieldValue('SERVO_PORT') || '').split(',').map(s => s.trim()).filter(Boolean);
     const angle = b.getFieldValue('ANG') || 0;
@@ -4506,16 +4637,61 @@ function defineGenerators() {
   reg['pressure'] = () => [`await async_pressure()`, py.ORDER_ATOMIC];
   reg['compass'] = () => [`await async_compass()`, py.ORDER_ATOMIC];
   reg['ceprom'] = () => [`await async_eeprom()`, py.ORDER_ATOMIC];
-  reg['speaker'] = () => [`await async_speaker()`, py.ORDER_ATOMIC];
-  reg['rotation_sensor'] = () => [`await async_rotation()`, py.ORDER_ATOMIC];
+  reg['speaker'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_speaker("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_speaker(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
+  reg['rotation_sensor'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_rotation("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_rotation(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
   reg['gsr_skin_current_sensor'] = () => [`await async_gsr_skin_current_sensor()`, py.ORDER_ATOMIC];
   reg['line_follower'] = () => [`await async_line_follower_array()`, py.ORDER_ATOMIC];
-  reg['water_level'] = () => [`await async_water_level()`, py.ORDER_ATOMIC]
-  reg['solor_panel'] = () => [`await async_solor_panel()`, py.ORDER_ATOMIC];
-  reg['admp'] = () => [`await async_admp401()`, py.ORDER_ATOMIC];
+  reg['water_level'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await water_level("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await water_level(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
+  reg['solor_panel'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_solor_panel("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_solor_panel(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
+  reg['admp'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_admp401("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_admp401(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
+  reg['uv_sensor_ana'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_uv_sensor_ana("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_uv_sensor_ana(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };  
+  reg['ph_sensor'] = b => {
+    const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ports.length) return ['# no port', py.ORDER_NONE];
+    if (ports.length === 1)
+      return [`await async_ph_sensor("${ports[0]}")`, py.ORDER_ATOMIC];
+    return [`await async_ph_sensor(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
+  };
+  
   reg['uv_sensor'] = () => [`await async_uv_sensor()`, py.ORDER_ATOMIC];
-  reg['uv_sensor_ana'] = () => [`await async_uv_sensor_ana()`, py.ORDER_ATOMIC];
-  reg['ph_sensor'] = () => [`await async_ph_sensor()`, py.ORDER_ATOMIC];
+  
+  
   reg['seven_segment'] = () => [`await async_seven_segment()`, py.ORDER_ATOMIC];
   reg['gas_sensor'] = () => [`await async_gas_sensor()`, py.ORDER_ATOMIC];
   reg['lifi_receiver'] = () => [`await async_lifi_receiver()`, py.ORDER_ATOMIC];

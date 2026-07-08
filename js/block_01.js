@@ -94,7 +94,6 @@ window.toolboxConfig = {
         { kind: 'block', type: 'mag_encoder' },
         { kind: 'block', type: 'rfc' },
         { kind: 'block', type: 'text_speech' },
-        { kind: 'block', type: 'touch_sensor' },
         { kind: 'block', type: 'uv_sensor' },
         { kind: 'block', type: 'temp_sensor' },
         { kind: 'block', type: 'accelerometer' },
@@ -105,7 +104,6 @@ window.toolboxConfig = {
         { kind: 'block', type: 'lifi_transmitter' },
         { kind: 'block', type: 'touch_potentiometer' },
         { kind: 'block', type: 'fm_receiver' },
-        { kind: 'block', type: 'rotation_sensor' },
         { kind: 'block', type: 'gsr_skin_current_sensor' },
         { kind: 'block', type: 'line_follower' },
 
