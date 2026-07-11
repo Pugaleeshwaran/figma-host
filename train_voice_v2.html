@@ -686,7 +686,7 @@
         
 
 
-const CONVERT_SERVER = localStorage.getItem('backend_url') || "http://192.168.0.10:5001";
+const CONVERT_SERVER = localStorage.getItem('backend_url') || `http://${window.location.hostname}:5001`;
 
 window.addEventListener('DOMContentLoaded', () => {
     const inputEl = document.getElementById('backendUrlInput');

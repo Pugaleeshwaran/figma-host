@@ -348,6 +348,24 @@
             cursor: pointer;
         }
 
+        .burst-btn {
+            flex-shrink: 0;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .burst-btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
         .thumbs {
             display: flex;
             gap: 6px;
@@ -1404,7 +1422,7 @@
             const input = document.getElementById('backendUrlInput');
             let val = input?.value?.trim();
             if (val) return val.endsWith('/') ? val.slice(0, -1) : val;
-            return localStorage.getItem('backend_url') || 'http://192.168.0.10:5001';
+            return localStorage.getItem('backend_url') || `http://${window.location.hostname}:5001`;
         }
 
         async function postToBackend(endpoint, formData) {
@@ -2090,6 +2108,8 @@
                     ontouchstart="startHold(${idx})"
                     ontouchend="stopHold()"
                 >Hold to Capture</button>
+                <button class="burst-btn" id="burst-btn-${idx}"
+                    onclick="burstCapture(${idx})">📸 Capture 50</button>
                 <button class="stop-cam-btn"
                     onclick="stopCapture()">Stop</button>
             </div>` : k230CamIdx === idx ? `
@@ -2111,6 +2131,8 @@
                     ontouchstart="startK230Hold(${idx})"
                     ontouchend="stopK230Hold()"
                 >Hold to Capture</button>
+                <button class="burst-btn" id="burst-k230-btn-${idx}"
+                    onclick="burstK230Capture(${idx})">📸 Capture 50</button>
                 <button class="stop-cam-btn"
                     onclick="stopK230Capture()">Stop</button>
             </div>` : `
@@ -2357,6 +2379,25 @@
             captureTimer = null;
         }
 
+        let burstRunning = false;
+        async function burstCapture(classIdx, total = 50) {
+            if (burstRunning) return;
+            if (activeCamType !== 'webcam' || activeCamIdx !== classIdx) return;
+            burstRunning = true;
+            const btn = document.getElementById(`burst-btn-${classIdx}`);
+            if (btn) btn.disabled = true;
+
+            for (let i = 0; i < total; i++) {
+                if (activeCamType !== 'webcam' || activeCamIdx !== classIdx) break;
+                captureFrame(classIdx);
+                if (btn) btn.textContent = `📸 ${i + 1}/${total}`;
+                await new Promise(r => setTimeout(r, 120));
+            }
+
+            if (btn) { btn.disabled = false; btn.textContent = '📸 Capture 50'; }
+            burstRunning = false;
+        }
+
         function stopCapture() {
             stopHold();
             if (activeCamStream) {
@@ -2546,6 +2587,25 @@
         let k230HoldTimer = null;
         function startK230Hold(idx) { k230CaptureFrame(idx); k230HoldTimer = setInterval(() => k230CaptureFrame(idx), 150); }
         function stopK230Hold() { clearInterval(k230HoldTimer); k230HoldTimer = null; }
+
+        let burstK230Running = false;
+        async function burstK230Capture(idx, total = 50) {
+            if (burstK230Running) return;
+            if (k230CamIdx !== idx) return;
+            burstK230Running = true;
+            const btn = document.getElementById(`burst-k230-btn-${idx}`);
+            if (btn) btn.disabled = true;
+
+            for (let i = 0; i < total; i++) {
+                if (k230CamIdx !== idx) break;
+                k230CaptureFrame(idx);
+                if (btn) btn.textContent = `📸 ${i + 1}/${total}`;
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            if (btn) { btn.disabled = false; btn.textContent = '📸 Capture 50'; }
+            burstK230Running = false;
+        }
 
         async function k230CaptureFrame(idx) {
             if (!k230LatestFrame) return;

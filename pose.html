@@ -376,6 +376,30 @@
             opacity: .8;
         }
 
+        /* Capture 50 (burst) button */
+        .burst-btn {
+            flex-shrink: 0;
+            padding: 11px 14px;
+            border: none;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #fff;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: opacity .15s;
+        }
+
+        .burst-btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .burst-btn:not(:disabled):hover {
+            opacity: .85;
+        }
+
         /* Stop button */
         .stop-cam-btn {
             padding: 11px 18px;
@@ -1571,7 +1595,7 @@
         const CONVERT_SERVER = (() => {
             let saved = localStorage.getItem('backend_url');
             if (saved) return saved;
-            return 'http://192.168.0.10:5001';
+            return `http://${window.location.hostname}:5001`;
         })();
         const CHUNK_BYTES = 192;
         const SERIAL_SUPPORTED = 'serial' in navigator;
@@ -1619,6 +1643,20 @@
         // Live preview state
         let previewStream = null;
         let previewVideo = null;
+
+        // Chromium occasionally throws AbortError "Timeout starting video source" the
+        // first time a camera device is opened (driver/hardware needing a moment to
+        // free up, e.g. right after another tab/app released it). One short retry
+        // clears the vast majority of these without bothering the user.
+        async function getUserMediaWithRetry(constraints) {
+            try {
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (e) {
+                if (e.name !== 'AbortError') throw e;
+                await new Promise(r => setTimeout(r, 800));
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            }
+        }
 
         // ──────────────────────────────────────────────────────────────
         // WEBSERIAL STATE
@@ -1941,7 +1979,7 @@
             if (camOpenIdx !== null) stopCamCapture();
 
             try {
-                camStream = await navigator.mediaDevices.getUserMedia({
+                camStream = await getUserMediaWithRetry({
                     video: { width: 320, height: 240, facingMode: 'user' }, audio: false
                 });
                 camVideoEl = document.createElement('video');
@@ -2008,6 +2046,26 @@
         }
         function stopHoldRecord() {
             clearInterval(holdTimer); holdTimer = null;
+        }
+
+        let burstRunning = false;
+        async function burstCapture(classIdx, total = 50) {
+            if (burstRunning) return;
+            if (!moveNet || camOpenIdx !== classIdx || !camVideoEl) return;
+            burstRunning = true;
+            const btn = document.getElementById(`burst-btn-${classIdx}`);
+            if (btn) btn.disabled = true;
+
+            for (let i = 0; i < total; i++) {
+                if (camOpenIdx !== classIdx || !camVideoEl) break;
+                await captureOneSample(classIdx);
+                if (btn) btn.textContent = `📸 Capturing ${i + 1}/${total}`;
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            if (btn) { btn.disabled = false; btn.textContent = '📸 Capture 50'; }
+            burstRunning = false;
+            setStatus(`✓ Burst capture finished for "${classes[classIdx]?.name || ''}".`);
         }
 
         async function captureOneSample(classIdx) {
@@ -2158,6 +2216,7 @@
                             ontouchstart="startHoldRecord(${idx})" ontouchend="stopHoldRecord()">
                             Hold to Capture
                         </button>
+                        <button class="burst-btn" id="burst-btn-${idx}" onclick="burstCapture(${idx})">📸 Capture 50</button>
                         <button class="stop-cam-btn" onclick="stopCamCapture()">Stop</button>
                     </div>
                     ` : `
@@ -2472,7 +2531,7 @@
             if (!trained || !classifier) { alert('Train the model first!'); return; }
 
             try {
-                previewStream = await navigator.mediaDevices.getUserMedia({
+                previewStream = await getUserMediaWithRetry({
                     video: { width: 320, height: 240, facingMode: 'user' }, audio: false
                 });
                 previewVideo = document.createElement('video');

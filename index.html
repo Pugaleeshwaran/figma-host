@@ -49,7 +49,8 @@
 
   <!-- Inter font — preconnect speeds up the DNS lookup -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    media="print" onload="this.media='all'">
 
   <!-- Font Awesome — loaded non-blocking so it never delays first paint -->
   <link rel="stylesheet" href="offline_libs/font-awesome/css/brands.min.css" media="print" onload="this.media='all'" />
@@ -215,7 +216,8 @@
         </div>
 
         <!-- Nav buttons -->
-        <button class="nav-btn" title="Community" onclick="window.location.href='community.html'"><img src="./icons/community.svg" alt="Community" />Community</button>
+        <button class="nav-btn" title="Community" onclick="window.location.href='community.html'"><img
+            src="./icons/community.svg" alt="Community" />Community</button>
         <button class="nav-btn" title="User Guide"><img src="./icons/user_guide.svg" alt="User Guide" />User
           Guide</button>
         <button class="nav-btn" title="Example Programs"><img src="./icons/Example_program.svg"
@@ -404,7 +406,7 @@
           <!-- ─── PANE 2: Terminal ─── -->
           <div class="cp-pane" id="pane-terminal">
             <div class="term-card-container">
-              
+
               <!-- SENSORS CARD -->
               <div class="term-card card-sensors">
                 <div class="term-card-header">Sensors</div>
@@ -1142,23 +1144,20 @@
     <div class="box">
       <h3>Digital Pins</h3>
       <div class="box1">
-        <div class="row"><label><input type="checkbox" id="portD3"> D3</label></div>
-        <div class="row"><label><input type="checkbox" id="portD4"> D4</label></div>
-        <div class="row"><label><input type="checkbox" id="portD5"> D5</label></div>
-        <div class="row"><label><input type="checkbox" id="portD6"> D6</label></div>
-        <div class="row"><label><input type="checkbox" id="portE3"> E3</label></div>
-        <div class="row"><label><input type="checkbox" id="portG4"> G4</label></div>
-        <div class="row"><label><input type="checkbox" id="portG5"> G5</label></div>
-        <div class="row"><label><input type="checkbox" id="portG6"> G6</label></div>
+        <div class="row"><label><input type="checkbox" id="portD3"> P1</label></div>
+        <div class="row"><label><input type="checkbox" id="portD4"> P2</label></div>
+        <div class="row"><label><input type="checkbox" id="portD5"> P3</label></div>
+        <div class="row"><label><input type="checkbox" id="portD6"> P4</label></div>
+        <div class="row"><label><input type="checkbox" id="portD7"> P5</label></div>
+
       </div>
       <div class="box2">
-        <div class="row"><label><input type="checkbox" id="portD7"> D7</label></div>
-        <div class="row"><label><input type="checkbox" id="portE0"> E0</label></div>
-        <div class="row"><label><input type="checkbox" id="portE1"> E1</label></div>
-        <div class="row"><label><input type="checkbox" id="portG3"> G3</label></div>
-        <div class="row"><label><input type="checkbox" id="portG0"> G0</label></div>
-        <div class="row"><label><input type="checkbox" id="portG1"> G1</label></div>
-        <div class="row"><label><input type="checkbox" id="portG2"> G2</label></div>
+        <div class="row"><label><input type="checkbox" id="portE0"> P6</label></div>
+        <div class="row"><label><input type="checkbox" id="portE1"> P7</label></div>
+        <div class="row"><label><input type="checkbox" id="portG3"> P8</label></div>
+        <div class="row"><label><input type="checkbox" id="portG0"> P9</label></div>
+        <div class="row"><label><input type="checkbox" id="portG1"> P10</label></div>
+        <div class="row"><label><input type="checkbox" id="portG2"> P11</label></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
         <button onclick="savePortSelection()">Save</button>
@@ -1254,14 +1253,10 @@
     <div class="box">
       <h3>Select Motor(s)</h3>
       <div class="box1">
-        <div class="row"><label><input type="checkbox" id="motorE11"> E11</label></div>
-        <div class="row"><label><input type="checkbox" id="motorE12"> E12</label></div>
-        <div class="row"><label><input type="checkbox" id="motorB9"> B9</label></div>
-        <div class="row"><label><input type="checkbox" id="motorB8"> B8</label></div>
-        <div class="row"><label><input type="checkbox" id="motorE13"> E13</label></div>
-        <div class="row"><label><input type="checkbox" id="motorB15"> B15</label></div>
-        <div class="row"><label><input type="checkbox" id="motorD15"> D15</label></div>
-        <div class="row"><label><input type="checkbox" id="motorE14"> E14</label></div>
+        <div class="row"><label><input type="checkbox" id="motorP1"> P1</label></div>
+        <div class="row"><label><input type="checkbox" id="motorP2"> P2</label></div>
+        <div class="row"><label><input type="checkbox" id="motorP3"> P3</label></div>
+        <div class="row"><label><input type="checkbox" id="motorP4"> P4</label></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
         <button onclick="saveMotorSelection()">Save</button>
@@ -1277,23 +1272,20 @@
       <h3 style="margin-bottom:15px;text-align:center;">Analog Pins</h3>
 
       <div class="box1">
-        <div class="row"><label><input type="checkbox" id="ledPinC0"> C0</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinC1"> C1</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinC2"> C2</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinF9"> F9</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinA3"> A3</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinF3"> F3</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinF4"> F4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC0"> P1</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC1"> P2</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC2"> P3</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF9"> P4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC4"> P5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC5"> P6</label></div>
       </div>
       <div class="box2">
-        <div class="row"><label><input type="checkbox" id="ledPinF5"> F5</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinC4"> C4</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinC5"> C5</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinA1"> A1</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinA2"> A2</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinA4"> A4</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinF8"> F8</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinA6"> A6</label></div>
+
+        <div class="row"><label><input type="checkbox" id="ledPinA1"> P7</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA2"> P8</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA4"> P9</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF8"> P10</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA6"> P11</label></div>
 
       </div>
       <div
