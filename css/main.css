@@ -6515,11 +6515,15 @@
       background: #84CB17 !important;
     }
 
-    .blocklyToolboxCategory[data-figma="A.I. Vision"] [class*="blocklyToolboxCategoryIcon"] {
+    .blocklyToolboxCategory[data-figma="A.I. Vision"] [class*="blocklyToolboxCategoryIcon"],
+    .blocklyToolboxCategory[data-figma="K230 AI Vision"] [class*="blocklyToolboxCategoryIcon"],
+    .blocklyToolboxCategory[data-figma="S3 AI Vision"] [class*="blocklyToolboxCategoryIcon"] {
       background-image: url(../assets/img/img_012.svg) !important;
     }
 
-    .blocklyToolboxCategory[data-figma="A.I. Vision"]::before {
+    .blocklyToolboxCategory[data-figma="A.I. Vision"]::before,
+    .blocklyToolboxCategory[data-figma="K230 AI Vision"]::before,
+    .blocklyToolboxCategory[data-figma="S3 AI Vision"]::before {
       background: #EE4444 !important;
     }
 

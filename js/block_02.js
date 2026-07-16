@@ -465,6 +465,7 @@ function updateSensorsAndVariablesUI() {
 
 function resetToolboxAndAIClasses() {
   window._aiTrainedClasses = null;
+  window._aiTrainedBoard = null;
   window._voiceTrainedClasses = null;
   window._poseTrainedClasses = null;
 
@@ -522,6 +523,47 @@ function resetToolboxAndAIClasses() {
       }]);
     }
 
+    // Reset the board-specific (K230/S3) variants the same way
+    ['k230', 's3'].forEach(function (board) {
+      const tag = board.toUpperCase();
+
+      const resultType = 'ai_class_result_' + board;
+      if (Blockly.Blocks[resultType]) {
+        delete Blockly.Blocks[resultType];
+        Blockly.defineBlocksWithJsonArray([{
+          type: resultType,
+          message0: tag + ': classifying result is %1',
+          args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+          colour: '#7c3aed', output: 'Boolean',
+          tooltip: 'Returns true if the ' + tag + ' camera sees this class.',
+        }]);
+      }
+
+      const reliabilityType = 'ai_class_reliability_' + board;
+      if (Blockly.Blocks[reliabilityType]) {
+        delete Blockly.Blocks[reliabilityType];
+        Blockly.defineBlocksWithJsonArray([{
+          type: reliabilityType,
+          message0: tag + ': reliability of %1',
+          args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+          colour: '#7c3aed', output: 'Number',
+          tooltip: 'Returns 0–100 confidence score for this class on ' + tag + '.',
+        }]);
+      }
+
+      const classifyType = 'ai_classify_image_' + board;
+      if (Blockly.Blocks[classifyType]) {
+        delete Blockly.Blocks[classifyType];
+        Blockly.defineBlocksWithJsonArray([{
+          type: classifyType,
+          message0: tag + ': classify image → result %1',
+          args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
+          colour: '#f54254', previousStatement: null, nextStatement: null,
+          tooltip: 'Run AI classification on the ' + tag + ' camera feed.',
+        }]);
+      }
+    });
+
     // Clean up dynamically added voice/pose blocks if any
     const voicePoseBlocks = [
       'voice_heard', 'voice_confidence', 'voice_classify',
@@ -538,6 +580,7 @@ function prepareSaveData() {
   return {
     workspaceState: state,
     aiTrainedClasses: window._aiTrainedClasses || null,
+    aiTrainedBoard: window._aiTrainedBoard || null,
     voiceTrainedClasses: window._voiceTrainedClasses || null,
     poseTrainedClasses: window._poseTrainedClasses || null
   };
@@ -1646,48 +1689,48 @@ let currentMotorBlock = null;
 function openMotorSelectionModal(block) {
   currentMotorBlock = block;
   const rawTxt = block.getFieldValue('MOTORS') || '';
-  
+
   ['P1', 'P2', 'P3', 'P4'].forEach(p => {
     const cb = document.getElementById('motor' + p);
     if (cb) cb.checked = false;
   });
 
   if (rawTxt.includes('E11') || rawTxt.includes('E12')) {
-      const cb = document.getElementById('motorP1');
-      if (cb) cb.checked = true;
+    const cb = document.getElementById('motorP1');
+    if (cb) cb.checked = true;
   }
   if (rawTxt.includes('B8') || rawTxt.includes('B9')) {
-      const cb = document.getElementById('motorP2');
-      if (cb) cb.checked = true;
+    const cb = document.getElementById('motorP2');
+    if (cb) cb.checked = true;
   }
   if (rawTxt.includes('E13') || rawTxt.includes('B15')) {
-      const cb = document.getElementById('motorP3');
-      if (cb) cb.checked = true;
+    const cb = document.getElementById('motorP3');
+    if (cb) cb.checked = true;
   }
   if (rawTxt.includes('D15') || rawTxt.includes('E14')) {
-      const cb = document.getElementById('motorP4');
-      if (cb) cb.checked = true;
+    const cb = document.getElementById('motorP4');
+    if (cb) cb.checked = true;
   }
-  
+
   document.getElementById('motorSelectionModal').style.display = 'block';
 }
 function closeModal() { document.getElementById('motorSelectionModal').style.display = 'none'; }
 function saveMotorSelection() {
   if (!currentMotorBlock) { closeModal(); return; }
   const selected = [];
-  
+
   const cb1 = document.getElementById('motorP1');
   if (cb1 && cb1.checked) selected.push('E11,E12');
-  
+
   const cb2 = document.getElementById('motorP2');
   if (cb2 && cb2.checked) selected.push('B9,B8');
-  
+
   const cb3 = document.getElementById('motorP3');
   if (cb3 && cb3.checked) selected.push('E13,B15');
-  
+
   const cb4 = document.getElementById('motorP4');
   if (cb4 && cb4.checked) selected.push('D15,E14');
-  
+
   currentMotorBlock.setFieldValue(selected.length ? selected.join(',') : '', 'MOTORS');
   closeModal();
 }
@@ -3721,9 +3764,9 @@ function defineBlocks() {
       output: "Boolean",
       extensions: ["temp_style", "led_pin_image_click"]
     },
-    
-    
-    
+
+
+
     { type: "uv_sensor_dig", message0: "UV Sensor Digital", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
     { type: "seven_segment", message0: "Seven segment", style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
     { type: "gas_sensor", message0: 'gas sensor', style: "control_blocks", output: "Boolean", extensions: ["temp_style"] },
@@ -4050,6 +4093,72 @@ function defineBlocks() {
       extensions: ["defult_style"]
     },
     {
+      type: 'ai_open_train_k230',
+      message0: 'K230: 🤖 Open AI Training Studio',
+      args0: [],
+      colour: '#7c3aed',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Open the K230 AI camera training screen to train your model.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
+      type: 'ai_open_train_s3',
+      message0: 'S3: 🤖 Open AI Training Studio',
+      args0: [],
+      colour: '#7c3aed',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Open the S3 AI camera training screen to train your model.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
+      type: 'ai_export_model_k230',
+      message0: 'K230: 📤 Export AI Model to Board',
+      args0: [],
+      colour: '#0ea5e9',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Export the trained AI model to the connected K230 board.',
+      helpUrl: '',
+      extensions: ["defult_style"]
+    },
+    {
+      type: 'ai_export_model_s3',
+      message0: 'S3: 📤 Export AI Model to Board',
+      args0: [],
+      colour: '#0ea5e9',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Export the trained AI model to the connected S3 board.',
+      helpUrl: '',
+      extensions: ["defult_style"]
+    },
+    {
+      type: 'ai_infer_k230',
+      message0: '🧠 K230: Run AI Inference',
+      args0: [],
+      colour: '#f54254',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Trigger the AI inference loop on the K230 KPU.',
+      helpUrl: '',
+      extensions: ["led_style"]
+    },
+    {
+      type: 'ai_infer_s3',
+      message0: '🧠 S3: Run AI Inference',
+      args0: [],
+      colour: '#f54254',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Trigger the AI inference loop on the S3 board.',
+      helpUrl: '',
+      extensions: ["led_style"]
+    },
+    {
       type: 'ai_classify_image',
       message0: 'classify image → result %1',
       args0: [{
@@ -4061,6 +4170,36 @@ function defineBlocks() {
       previousStatement: null,
       nextStatement: null,
       tooltip: 'Run AI classification on camera feed.',
+      helpUrl: '',
+      extensions: ["led_style"]
+    },
+    {
+      type: 'ai_classify_image_k230',
+      message0: 'K230: classify image → result %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#f54254',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Run AI classification on the K230 camera feed.',
+      helpUrl: '',
+      extensions: ["led_style"]
+    },
+    {
+      type: 'ai_classify_image_s3',
+      message0: 'S3: classify image → result %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#f54254',
+      previousStatement: null,
+      nextStatement: null,
+      tooltip: 'Run AI classification on the S3 camera feed.',
       helpUrl: '',
       extensions: ["led_style"]
     },
@@ -4079,6 +4218,34 @@ function defineBlocks() {
       extensions: ["temp_style"]
     },
     {
+      type: 'ai_class_result_k230',
+      message0: 'K230: classifying result is %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#7c3aed',
+      output: 'Boolean',
+      tooltip: 'Returns true if the K230 camera sees this class.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
+      type: 'ai_class_result_s3',
+      message0: 'S3: classifying result is %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#7c3aed',
+      output: 'Boolean',
+      tooltip: 'Returns true if the S3 camera sees this class.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
       type: 'ai_class_reliability',
       message0: 'reliability of %1',
       args0: [{
@@ -4089,6 +4256,34 @@ function defineBlocks() {
       colour: '#7c3aed',
       output: 'Number',
       tooltip: 'Returns 0–100 confidence score for this class.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
+      type: 'ai_class_reliability_k230',
+      message0: 'K230: reliability of %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#7c3aed',
+      output: 'Number',
+      tooltip: 'Returns 0–100 confidence score for this class on K230.',
+      helpUrl: '',
+      extensions: ["temp_style"]
+    },
+    {
+      type: 'ai_class_reliability_s3',
+      message0: 'S3: reliability of %1',
+      args0: [{
+        type: 'field_dropdown',
+        name: 'CLASS',
+        options: [['Class1', 'Class1'], ['Class2', 'Class2']]
+      }],
+      colour: '#7c3aed',
+      output: 'Number',
+      tooltip: 'Returns 0–100 confidence score for this class on S3.',
       helpUrl: '',
       extensions: ["temp_style"]
     },
@@ -4711,7 +4906,7 @@ function defineGenerators() {
     if (ports.length === 1)
       return [`await async_uv_sensor_ana("${ports[0]}")`, py.ORDER_ATOMIC];
     return [`await async_uv_sensor_ana(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
-  };  
+  };
   reg['ph_sensor'] = b => {
     const ports = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean);
     if (!ports.length) return ['# no port', py.ORDER_NONE];
@@ -4719,10 +4914,10 @@ function defineGenerators() {
       return [`await async_ph_sensor("${ports[0]}")`, py.ORDER_ATOMIC];
     return [`await async_ph_sensor(${ports.map(p => `"${p}"`).join(',')})`, py.ORDER_ATOMIC];
   };
-  
+
   reg['uv_sensor'] = () => [`await async_uv_sensor()`, py.ORDER_ATOMIC];
-  
-  
+
+
   reg['seven_segment'] = () => [`await async_seven_segment()`, py.ORDER_ATOMIC];
   reg['gas_sensor'] = () => [`await async_gas_sensor()`, py.ORDER_ATOMIC];
   reg['lifi_receiver'] = () => [`await async_lifi_receiver()`, py.ORDER_ATOMIC];
@@ -4797,14 +4992,32 @@ function defineGenerators() {
   };
 
   reg['ai_open_train'] = b => `await async_open_ai_training()  # opens AI Training Studio\n`;
+  reg['ai_open_train_k230'] = b => `await async__k230_open_ai_training()  # opens AI Training Studio\n`;
+  reg['ai_open_train_s3'] = b => `await async__s3_open_ai_training()  # opens AI Training Studio\n`;
   reg['ai_export_model'] = b => `await async_export_ai_model()  # exports trained model to board\n`;
+  reg['ai_export_model_k230'] = b => `await async__k230_export_ai_model()  # exports trained model to K230 board\n`;
+  reg['ai_export_model_s3'] = b => `await async__s3_export_ai_model()  # exports trained model to S3 board\n`;
   reg['ai_classify_image'] = b => {
     const cls = b.getFieldValue('CLASS') || 'Class1';
     return `await async_get_ai_classify_image("${cls}")\n`;
   };
+  reg['ai_classify_image_k230'] = b => {
+    const cls = b.getFieldValue('CLASS') || 'Class1';
+    return `await async__k230_get_ai_classify_image("${cls}")\n`;
+  };
+  reg['ai_classify_image_s3'] = b => {
+    const cls = b.getFieldValue('CLASS') || 'Class1';
+    return `await async__s3_get_ai_classify_image("${cls}")\n`;
+  };
   reg['ai_class_result'] = b => [`await async_result("${b.getFieldValue('CLASS')}")`, py.ORDER_RELATIONAL];
+  reg['ai_class_result_k230'] = b => [`await async__k230_result("${b.getFieldValue('CLASS')}")`, py.ORDER_RELATIONAL];
+  reg['ai_class_result_s3'] = b => [`await async__s3_result("${b.getFieldValue('CLASS')}")`, py.ORDER_RELATIONAL];
   reg['ai_class_reliability'] = b => [`await async_get_reliability("${b.getFieldValue('CLASS')}")`, py.ORDER_FUNCTION_CALL];
+  reg['ai_class_reliability_k230'] = b => [`await async__k230_get_reliability("${b.getFieldValue('CLASS')}")`, py.ORDER_FUNCTION_CALL];
+  reg['ai_class_reliability_s3'] = b => [`await async__s3_get_reliability("${b.getFieldValue('CLASS')}")`, py.ORDER_FUNCTION_CALL];
   reg['ai_infer'] = () => `await async_run_inference()\n`;
+  reg['ai_infer_k230'] = () => `await async__k230_run_inference()\n`;
+  reg['ai_infer_s3'] = () => `await async__s3_run_inference()\n`;
 
   // ── Voice ML generators ──────────────────────────────────────────────
   reg['voice_classify'] = b => {
@@ -6132,6 +6345,14 @@ async function start() {
     ICONS['Search'] = 'assets/img/icon_035.svg';
     ICONS['A.I. Voice'] = 'assets/img/icon_036.svg';
     ICONS['A.I. Pose'] = 'assets/img/icon_014.svg';
+    // Board-tagged A.I. Vision category names (K230 AI Vision / S3 AI Vision)
+    // share the same colour/icon as the original "A.I. Vision" entry.
+    C['K230 AI Vision'] = C['A.I. Vision'];
+    C['S3 AI Vision'] = C['A.I. Vision'];
+    ICONS['K230 AI Vision'] = ICONS['A.I. Vision'];
+    ICONS['S3 AI Vision'] = ICONS['A.I. Vision'];
+    window.SMALL_ICONS['K230 AI Vision'] = window.SMALL_ICONS['A.I. Vision'];
+    window.SMALL_ICONS['S3 AI Vision'] = window.SMALL_ICONS['A.I. Vision'];
 
     function tag(row) {
       var lbl = row.querySelector('.blocklyToolboxCategoryLabel');
@@ -6364,10 +6585,38 @@ async function start() {
       openAITrainScreen();
     }
   };
+  // When user clicks the K230-specific open-training block → open K230's picker
+  Blockly.Blocks['ai_open_train_k230'].onchange = function (e) {
+    if (e.type === Blockly.Events.BLOCK_CLICK && e.blockId === this.id) {
+      openAITrainScreen();
+    }
+  };
+  // When user clicks the S3-specific open-training block → open S3's picker
+  Blockly.Blocks['ai_open_train_s3'].onchange = function (e) {
+    if (e.type === Blockly.Events.BLOCK_CLICK && e.blockId === this.id) {
+      openS3TrainScreen();
+    }
+  };
   // When user clicks ai_export_model block → send export message
   Blockly.Blocks['ai_export_model'].onchange = function (e) {
     if (e.type === Blockly.Events.BLOCK_CLICK && e.blockId === this.id) {
       const payload = JSON.stringify({ type: 'EXPORT_AI_MODEL' });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
+      else window.parent?.postMessage(payload, '*');
+    }
+  };
+  // When user clicks the K230-specific export block → send export message tagged for K230
+  Blockly.Blocks['ai_export_model_k230'].onchange = function (e) {
+    if (e.type === Blockly.Events.BLOCK_CLICK && e.blockId === this.id) {
+      const payload = JSON.stringify({ type: 'EXPORT_AI_MODEL', board: 'k230' });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
+      else window.parent?.postMessage(payload, '*');
+    }
+  };
+  // When user clicks the S3-specific export block → send export message tagged for S3
+  Blockly.Blocks['ai_export_model_s3'].onchange = function (e) {
+    if (e.type === Blockly.Events.BLOCK_CLICK && e.blockId === this.id) {
+      const payload = JSON.stringify({ type: 'EXPORT_AI_MODEL', board: 's3' });
       if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(payload);
       else window.parent?.postMessage(payload, '*');
     }
@@ -6406,6 +6655,58 @@ async function start() {
     Blockly.Variables.createVariableButtonHandler(workspace, function (varName) {
     }, 'list');
   });
+
+  // Register a separate "<BOARD> AI Vision" flyout + Train button per board.
+  // Each category is only added to the toolbox once that specific board is
+  // picked (see setSelectedBoard / ensureAIVisionCategory above) — picking
+  // a 2nd board adds its own category instead of replacing the 1st.
+  function buildAIVisionFlyout(board) {
+    return function () {
+      var xmlList = [];
+      var tag = board === 's3' ? 'S3' : 'K230';
+
+      var button = document.createElement('button');
+      button.setAttribute('text', '🎯 Train ' + tag);
+      button.setAttribute('callbackKey', 'TRAIN_AI_VISION_' + board.toUpperCase());
+      xmlList.push(button);
+
+      var trained = (window._aiVisionTrainedContents && window._aiVisionTrainedContents[board]) || [];
+      if (trained.length > 0) {
+        var sep = document.createElement('sep');
+        sep.setAttribute('gap', '24');
+        xmlList.push(sep);
+        trained.forEach(function (item) {
+          if (item.kind === 'block' && Blockly.Blocks[item.type]) {
+            var b = document.createElement('block');
+            b.setAttribute('type', item.type);
+            xmlList.push(b);
+          }
+        });
+      }
+      return xmlList;
+    };
+  }
+  window.__aiVisionFlyoutCallbackK230 = buildAIVisionFlyout('k230');
+  window.__aiVisionFlyoutCallbackS3 = buildAIVisionFlyout('s3');
+  workspace.registerToolboxCategoryCallback('AI_VISION_K230', window.__aiVisionFlyoutCallbackK230);
+  workspace.registerToolboxCategoryCallback('AI_VISION_S3', window.__aiVisionFlyoutCallbackS3);
+  workspace.registerButtonCallback('TRAIN_AI_VISION_K230', function () {
+    if (typeof openAITrainScreen === 'function') openAITrainScreen();
+  });
+  workspace.registerButtonCallback('TRAIN_AI_VISION_S3', function () {
+    if (typeof openS3TrainScreen === 'function') openS3TrainScreen();
+  });
+
+  // Restore any previously-picked boards (if any) so their categories
+  // survive reloads. Falls back to the old singular key for migration.
+  try {
+    var _savedBoards = JSON.parse(localStorage.getItem('blockly_selected_boards') || 'null');
+    if (!_savedBoards) {
+      var _legacyBoard = localStorage.getItem('blockly_selected_board');
+      _savedBoards = _legacyBoard ? [_legacyBoard] : [];
+    }
+    _savedBoards.forEach(function (b) { setSelectedBoard(b); });
+  } catch (e) { }
 
   // ══════════════════════════════════════════════════════════════════════
   // BLOCKLY v12 DYNAMIC TOOLBOX FEATURES
@@ -8432,7 +8733,7 @@ async function start() {
         const parsed = JSON.parse(trimmed);
         if (parsed && parsed.workspaceState) {
           if (parsed.aiTrainedClasses) {
-            applyAIClasses(parsed.aiTrainedClasses);
+            applyAIClasses(parsed.aiTrainedClasses, parsed.aiTrainedBoard);
             try { sessionStorage.setItem('curio_ai_trained', JSON.stringify(parsed.aiTrainedClasses)); } catch (e) { }
           }
           if (parsed.voiceTrainedClasses) {
@@ -8854,7 +9155,7 @@ async function start() {
           const parsed = JSON.parse(trimmed);
           if (parsed && parsed.workspaceState) {
             if (parsed.aiTrainedClasses) {
-              applyAIClasses(parsed.aiTrainedClasses);
+              applyAIClasses(parsed.aiTrainedClasses, parsed.aiTrainedBoard);
               try { sessionStorage.setItem('curio_ai_trained', JSON.stringify(parsed.aiTrainedClasses)); } catch (e) { }
             }
             if (parsed.voiceTrainedClasses) {
@@ -9626,47 +9927,139 @@ function openAITrainScreen() {
   }
 }
 
+/**
+ * Opens the S3 training picker directly (Image/Voice choice for the S3 board).
+ * Mirrors openAITrainScreen() but targets S3's picker instead of K230's.
+ */
+function openS3TrainScreen() {
+  const payload = JSON.stringify({ type: 'OPEN_S3_PICKER' });
+  if (window.ReactNativeWebView) {
+    window.ReactNativeWebView.postMessage(payload);
+  } else if (window.parent !== window) {
+    window.parent.postMessage(payload, '*');
+    window.postMessage(payload, '*');
+  } else {
+    // Standalone browser — go directly to the S3 picker
+    window.location.href = 's3_picker.html';
+  }
+}
+
+/**
+ * Opens the Extension screen — lets the user pick a board (K230, STM32, S3…)
+ * before landing on that board's training picker.
+ * - On mobile (React Native WebView): sends OPEN_BOARD_PICKER to App.js
+ * - On web (expo web / browser): sends postMessage to parent iframe host
+ */
+function openBoardScreen() {
+  const payload = JSON.stringify({ type: 'OPEN_BOARD_PICKER' });
+  if (window.ReactNativeWebView) {
+    window.ReactNativeWebView.postMessage(payload);
+  } else if (window.parent !== window) {
+    window.parent.postMessage(payload, '*');
+    window.postMessage(payload, '*');
+  } else {
+    // Standalone browser — go directly to the board picker
+    window.location.href = 'board.html';
+  }
+}
+
+// ── BOARD SELECTION — one "<BOARD> AI Vision" category per selected board ──
+// Both start hidden (see block_01.js). Picking K230 adds "K230 AI Vision";
+// picking S3 adds "S3 AI Vision" alongside it — selecting a 2nd board never
+// replaces the 1st, each board keeps its own category + Train button.
+window._selectedBoards = window._selectedBoards || {};   // { k230: true, s3: true }
+window._aiVisionTrainedContents = window._aiVisionTrainedContents || { k230: [], s3: [] };
+
+function ensureAIVisionCategory(board) {
+  const label = (board === 's3' ? 'S3' : 'K230') + ' AI Vision';
+  const catId = 'cat_ai_vision_' + board;
+  const contents = window.toolboxConfig.contents;
+
+  const found = contents.find(it => it.id === catId);
+  if (found) { found.name = label; return; }
+
+  const customKey = 'AI_VISION_' + board.toUpperCase();
+  const newCat = { kind: 'category', name: label, colour: '#f54254', id: catId, custom: customKey };
+
+  // Keep K230/S3 in a stable relative order when both are present.
+  const k230Idx = contents.findIndex(it => it.id === 'cat_ai_vision_k230');
+  let insertIdx;
+  if (board === 's3' && k230Idx !== -1) {
+    insertIdx = k230Idx + 1;
+  } else {
+    const blocksIdx = contents.findIndex(it => it.id === 'cat_ai_blocks');
+    insertIdx = blocksIdx === -1 ? contents.length : blocksIdx + 1;
+  }
+  contents.splice(insertIdx, 0, newCat);
+}
+
+function setSelectedBoard(board) {
+  board = (board === 's3') ? 's3' : 'k230';
+  window._selectedBoard = board;   // most-recently-picked board (legacy/reference use)
+  window._selectedBoards[board] = true;
+  try { localStorage.setItem('blockly_selected_boards', JSON.stringify(Object.keys(window._selectedBoards))); } catch (e) { }
+  ensureAIVisionCategory(board);
+  if (typeof workspace !== 'undefined' && workspace) {
+    try { workspace.updateToolbox(window.toolboxConfig); } catch (e) { }
+  }
+}
+window.setSelectedBoard = setSelectedBoard;
+
 // ── AI_MODEL_TRAINED — inject trained blocks into A.I. Vision category ─
 
-function applyAIClasses(classes) {
+function applyAIClasses(classes, board) {
   if (!classes || classes.length < 1) return;
+  board = (board === 's3') ? 's3' : 'k230';
   window._aiTrainedClasses = classes;
+  window._aiTrainedBoard = board;
   const opts = classes.map(c => [c, c]);
+  const tag = board.toUpperCase();
+  const classifyType = 'ai_classify_image_' + board;
+  const resultType = 'ai_class_result_' + board;
+  const reliabilityType = 'ai_class_reliability_' + board;
+  const openTrainType = 'ai_open_train_' + board;
+  const exportModelType = 'ai_export_model_' + board;
+  const inferType = 'ai_infer_' + board;
 
-  // 1. Re-define ai_class_result with trained dropdown
-  if (Blockly.Blocks['ai_class_result']) delete Blockly.Blocks['ai_class_result'];
+  // 1. Re-define the board-specific "classifying result" block with trained dropdown
+  if (Blockly.Blocks[resultType]) delete Blockly.Blocks[resultType];
   Blockly.defineBlocksWithJsonArray([{
-    type: 'ai_class_result',
-    message0: 'classifying result is %1',
+    type: resultType,
+    message0: tag + ': classifying result is %1',
     args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
     colour: '#7c3aed', output: 'Boolean',
-    tooltip: 'Returns true if the camera sees this class.',
+    tooltip: 'Returns true if the ' + tag + ' camera sees this class.',
   }]);
 
-  // 2. Re-define ai_class_reliability with trained dropdown
-  if (Blockly.Blocks['ai_class_reliability']) delete Blockly.Blocks['ai_class_reliability'];
+  // 2. Re-define the board-specific "reliability" block with trained dropdown
+  if (Blockly.Blocks[reliabilityType]) delete Blockly.Blocks[reliabilityType];
   Blockly.defineBlocksWithJsonArray([{
-    type: 'ai_class_reliability',
-    message0: 'reliability of %1',
+    type: reliabilityType,
+    message0: tag + ': reliability of %1',
     args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
     colour: '#7c3aed', output: 'Number',
-    tooltip: 'Returns 0–100 confidence score for this class.',
+    tooltip: 'Returns 0–100 confidence score for this class on ' + tag + '.',
   }]);
 
-  // 3. Re-define ai_classify_image with trained dropdown
-  if (Blockly.Blocks['ai_classify_image']) delete Blockly.Blocks['ai_classify_image'];
+  // 3. Re-define the board-specific classify-image block with trained dropdown
+  if (Blockly.Blocks[classifyType]) delete Blockly.Blocks[classifyType];
   Blockly.defineBlocksWithJsonArray([{
-    type: 'ai_classify_image',
-    message0: 'classify image → result %1',
+    type: classifyType,
+    message0: tag + ': classify image → result %1',
     args0: [{ type: 'field_dropdown', name: 'CLASS', options: opts }],
     colour: '#f54254', previousStatement: null, nextStatement: null,
-    tooltip: 'Run AI classification on camera feed.',
+    tooltip: 'Run AI classification on the ' + tag + ' camera feed.',
   }]);
 
   // 4. Patch existing workspace blocks
   if (typeof workspace !== 'undefined' && workspace) {
     workspace.getAllBlocks(false).forEach(function (block) {
-      if (['ai_class_result', 'ai_class_reliability', 'ai_classify_image'].includes(block.type)) {
+      if ([
+        'ai_class_result', 'ai_class_reliability', 'ai_classify_image',
+        'ai_classify_image_k230', 'ai_classify_image_s3',
+        'ai_class_result_k230', 'ai_class_result_s3',
+        'ai_class_reliability_k230', 'ai_class_reliability_s3',
+      ].includes(block.type)) {
         const field = block.getField('CLASS');
         if (field) {
           field.menuGenerator_ = opts;
@@ -9678,35 +10071,29 @@ function applyAIClasses(classes) {
     });
   }
 
-  // 5. Update A.I. Vision category in toolboxConfig
+  // 5. Update this board's A.I. Vision category — ensure it's visible/tagged,
+  // and hand the trained blocks to its own Train-button flyout callback.
+  // Other boards' categories/trained blocks are untouched.
   function doUpdate() {
     try {
-      if (typeof workspace !== 'undefined' && workspace && window.toolboxConfig) {
-        var trainedContents = [
-          { kind: 'block', type: 'ai_open_train' },
-          { kind: 'block', type: 'ai_export_model' },
-          { kind: 'block', type: 'ai_infer' },
-          { kind: 'block', type: 'ai_classify_image' },
-          { kind: 'block', type: 'ai_class_result' },
-          { kind: 'block', type: 'ai_class_reliability' },
-        ];
-        function findAndUpdate(items) {
-          if (!items) return false;
-          for (var i = 0; i < items.length; i++) {
-            if (items[i].id === 'cat_ai_vision') { items[i].contents = trainedContents; return true; }
-            if (items[i].contents && findAndUpdate(items[i].contents)) return true;
-          }
-          return false;
-        }
-        findAndUpdate(window.toolboxConfig.contents);
+      setSelectedBoard(board);
+      window._aiVisionTrainedContents[board] = [
+        { kind: 'block', type: openTrainType },
+        { kind: 'block', type: exportModelType },
+        { kind: 'block', type: inferType },
+        { kind: 'block', type: classifyType },
+        { kind: 'block', type: resultType },
+        { kind: 'block', type: reliabilityType },
+      ];
+      if (typeof workspace !== 'undefined' && workspace) {
         workspace.updateToolbox(window.toolboxConfig);
 
-        // Open the A.I. Vision category so user sees new blocks immediately
+        // Open this board's A.I. Vision category so user sees new blocks immediately
         setTimeout(function () {
           try {
             var tb = workspace.getToolbox();
             var aiItem = tb.getToolboxItems().find(function (item) {
-              return item.getName && item.getName() === 'A.I. Vision';
+              return item.getId && item.getId() === 'cat_ai_vision_' + board;
             });
             if (aiItem) tb.setSelectedItem(aiItem);
           } catch (e) { }
@@ -10233,7 +10620,8 @@ window.addEventListener('message', function (event) {
       if (typeof resetRunStopButtons === 'function') resetRunStopButtons();
       window._mobileBLEConnected = false;
     }
-    if (msg.type === 'AI_MODEL_TRAINED') applyAIClasses(msg.classes);
+    if (msg.type === 'BOARD_SELECTED') setSelectedBoard(msg.board);
+    if (msg.type === 'AI_MODEL_TRAINED') applyAIClasses(msg.classes, msg.board);
     if (msg.type === 'VOICE_MODEL_TRAINED') applyVoiceClasses(msg.classes);
     if (msg.type === 'POSE_MODEL_TRAINED') applyPoseClasses(msg.classes);
 
@@ -10319,15 +10707,15 @@ window.addEventListener('message', function (event) {
 })();
 
 // Override Field getText to show P1, P2... instead of D3, D4... visually
-(function() {
+(function () {
   function patchBlocklyField() {
     if (window.Blockly && window.Blockly.Field && !window.Blockly.Field.prototype._isPatchedForPorts) {
       const origGetText = window.Blockly.Field.prototype.getText;
-      const PORT_D_TO_P = { 
-        'D3':'P1', 'D4':'P2', 'D5':'P3', 'D6':'P4', 'D7':'P5', 'E0':'P6', 'E1':'P7', 'G3':'P8', 'G0':'P9', 'G1':'P10', 'G2':'P11',
-        'C0':'P1', 'C1':'P2', 'C2':'P3', 'F9':'P4', 'C4':'P5', 'C5':'P6', 'A1':'P7', 'A2':'P8', 'A4':'P9', 'F8':'P10', 'A6':'P11'
+      const PORT_D_TO_P = {
+        'D3': 'P1', 'D4': 'P2', 'D5': 'P3', 'D6': 'P4', 'D7': 'P5', 'E0': 'P6', 'E1': 'P7', 'G3': 'P8', 'G0': 'P9', 'G1': 'P10', 'G2': 'P11',
+        'C0': 'P1', 'C1': 'P2', 'C2': 'P3', 'F9': 'P4', 'C4': 'P5', 'C5': 'P6', 'A1': 'P7', 'A2': 'P8', 'A4': 'P9', 'F8': 'P10', 'A6': 'P11'
       };
-      
+
       function patchedGetText() {
         const val = origGetText.call(this);
         if (this.name === 'MOTORS' && typeof val === 'string') {
@@ -10342,27 +10730,27 @@ window.addEventListener('message', function (event) {
         }
         return val;
       }
-      
+
       window.Blockly.Field.prototype.getText = patchedGetText;
       if (window.Blockly.FieldLabel && window.Blockly.FieldLabel.prototype.getText === origGetText) {
-         window.Blockly.FieldLabel.prototype.getText = patchedGetText;
+        window.Blockly.FieldLabel.prototype.getText = patchedGetText;
       }
       window.Blockly.Field.prototype._isPatchedForPorts = true;
-      
+
       // Force rerender all existing blocks if workspace exists
       if (typeof workspace !== 'undefined' && workspace) {
-         workspace.getAllBlocks(false).forEach(b => {
-             if (b.getField('PORTS')) b.getField('PORTS').forceRerender();
-             if (b.getField('MOTORS')) b.getField('MOTORS').forceRerender();
-         });
+        workspace.getAllBlocks(false).forEach(b => {
+          if (b.getField('PORTS')) b.getField('PORTS').forceRerender();
+          if (b.getField('MOTORS')) b.getField('MOTORS').forceRerender();
+        });
       }
     }
   }
-  
+
   // Try now, or wait for Blockly to load
   if (window.Blockly && window.Blockly.Field) {
-     patchBlocklyField();
+    patchBlocklyField();
   } else {
-     window.addEventListener('load', () => setTimeout(patchBlocklyField, 1500));
+    window.addEventListener('load', () => setTimeout(patchBlocklyField, 1500));
   }
 })();

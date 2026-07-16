@@ -359,7 +359,7 @@
 <body>
 
 <div class="header">
-    <button class="back-btn" onclick="goBack()">&#x2190; Workspace</button>
+    <button class="back-btn" onclick="goBack()">&#x2190; Choose Type</button>
     <h1>Voice Training <span class="header-badge">&#x1F3A4; Audio ML v2</span></h1>
     <div style="display:flex;gap:8px;align-items:center">
         <button class="reset-btn" onclick="resetAll()">&#x1F504; Reset</button>
@@ -2024,7 +2024,11 @@ function goBack(){
     const payload=JSON.stringify({type:'CLOSE_VOICE_TRAIN_V2'});
     if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(payload);}
     else if(window.parent!==window){window.parent.postMessage(payload,'*');window.opener?.postMessage(payload,'*');}
-    else{window.location.href='train_picker.html';}
+    else{
+        let board='k230';
+        try{board=localStorage.getItem('blockly_active_train_board')||'k230';}catch(e){}
+        window.location.href = board==='s3' ? 's3_picker.html' : 'train_picker.html';
+    }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────

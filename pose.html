@@ -1322,7 +1322,7 @@
 <body>
 
     <div class="header">
-        <button class="back-btn" onclick="goBack()">← Workspace</button>
+        <button class="back-btn" onclick="goBack()">← Choose Type</button>
         <h1>Pose Training <span class="header-badge">🧘 Pose ML</span></h1>
         <div style="display:flex;gap:8px;align-items:center">
             <button class="reset-btn" onclick="resetPage()">🔄 Reset</button>
@@ -2948,8 +2948,8 @@
                 window.parent.postMessage(payload, '*');
                 window.opener?.postMessage(payload, '*');
             } else {
-                // Standalone browser — navigate back to workspace
-                window.location.href = 'index.html';
+                // Standalone browser — pose training is K230-only
+                window.location.href = 'train_picker.html';
             }
         }
 

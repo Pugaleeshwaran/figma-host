@@ -1015,7 +1015,7 @@
 <body>
 
     <div class="header">
-        <button class="back-btn" onclick="goBack()">← Workspace</button>
+        <button class="back-btn" onclick="goBack()">← Choose Type</button>
         <h1>Model Training</h1>
         <div style="display:flex;gap:8px;align-items:center;">
             <button class="reset-btn" onclick="resetState()">↺ Reset</button>
@@ -4056,8 +4056,11 @@ void loop() {
                 window.parent.postMessage(payload, '*');
                 window.opener?.postMessage(payload, '*');
             } else {
-                // Standalone browser — navigate back to workspace
-                window.location.href = 'index.html';
+                // Standalone browser — navigate back to the picker this
+                // session started from (K230 or S3)
+                let board = 'k230';
+                try { board = localStorage.getItem('blockly_active_train_board') || 'k230'; } catch (e) { }
+                window.location.href = board === 's3' ? 's3_picker.html' : 'train_picker.html';
             }
         }
 

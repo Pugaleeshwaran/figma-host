@@ -161,11 +161,9 @@ window.toolboxConfig = {
       ]
     },
 
-    // ── A.I. VISION (starts empty — blocks injected after Deploy) ────
-    {
-      kind: 'category', name: 'A.I. Vision', colour: '#F6E2E7', id: 'cat_ai_vision',
-      contents: []   // empty until Deploy to Blocks is clicked
-    },
+    // ── A.I. VISION — hidden until a board is picked via Extension →
+    // board.html. Inserted dynamically as "<BOARD> AI Vision" by
+    // setSelectedBoard() in block_02.js once K230/S3 is selected.
 
     // ── SPI ──────────────────────────────────────────────────────────
     {
