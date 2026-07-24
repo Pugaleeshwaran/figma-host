@@ -5,7 +5,7 @@ if (typeof python !== 'undefined' && python.pythonGenerator) {
 
 let workspace = null;
 let pyGen = null; // v12: set after Blockly loads
-let defaultToolboxConfig = typeof window !== 'undefined' && window.toolboxConfig ? JSON.parse(JSON.stringify(window.toolboxConfig)) : null;
+let defaultToolboxConfig = null;
 
 // =====================================================================
 // REDESIGNED TERMINAL PANELS STATE & LOGIC
@@ -477,20 +477,6 @@ function resetToolboxAndAIClasses() {
 
   if (typeof defaultToolboxConfig !== 'undefined' && defaultToolboxConfig) {
     window.toolboxConfig = JSON.parse(JSON.stringify(defaultToolboxConfig));
-    
-    // Re-apply any selected boards so their categories aren't lost when resetting the toolbox
-    try {
-      if (typeof window.setSelectedBoard === 'function') {
-        var _savedBoards = JSON.parse(localStorage.getItem('blockly_selected_boards') || 'null');
-        if (!_savedBoards) {
-          var _legacyBoard = localStorage.getItem('blockly_selected_board');
-          _savedBoards = _legacyBoard ? [_legacyBoard] : [];
-        }
-        // Calling setSelectedBoard will internally update the toolbox and persist the category
-        _savedBoards.forEach(function (b) { window.setSelectedBoard(b); });
-      }
-    } catch(e) {}
-
     if (typeof workspace !== 'undefined' && workspace) {
       try {
         workspace.updateToolbox(window.toolboxConfig);
@@ -595,7 +581,6 @@ function prepareSaveData() {
     workspaceState: state,
     aiTrainedClasses: window._aiTrainedClasses || null,
     aiTrainedBoard: window._aiTrainedBoard || null,
-    selectedBoards: window._selectedBoards || null,
     voiceTrainedClasses: window._voiceTrainedClasses || null,
     poseTrainedClasses: window._poseTrainedClasses || null
   };
@@ -1766,6 +1751,238 @@ function saveLedPinSelection() {
   LED_PIN_NAMES.forEach(pin => { const cb = document.getElementById('ledPin' + pin); if (cb && cb.checked) sel.push(pin); });
   currentLedBlock.setFieldValue(sel.length ? sel.join(',') : '', 'PORTS');
   closeLedPinModal();
+}
+
+let currentMinifanBlock = null;
+
+function openMinifanSelectionModal(block) {
+  currentMinifanBlock = block;
+  const rawTxt = block.getFieldValue('PORTS') || '';
+  
+  // Reset all to unselected
+  ['P1', 'P2', 'P3', 'P4'].forEach(p => {
+    const radio = document.querySelector(`input[name="minifanPort"][value="${p}"]`);
+    if (radio) radio.checked = false;
+  });
+
+  if (rawTxt.includes('E11') || rawTxt.includes('E12')) {
+    const radio = document.querySelector(`input[name="minifanPort"][value="P1"]`);
+    if (radio) radio.checked = true;
+  } else if (rawTxt.includes('B8') || rawTxt.includes('B9')) {
+    const radio = document.querySelector(`input[name="minifanPort"][value="P2"]`);
+    if (radio) radio.checked = true;
+  } else if (rawTxt.includes('E13') || rawTxt.includes('B15')) {
+    const radio = document.querySelector(`input[name="minifanPort"][value="P3"]`);
+    if (radio) radio.checked = true;
+  } else if (rawTxt.includes('D15') || rawTxt.includes('E14')) {
+    const radio = document.querySelector(`input[name="minifanPort"][value="P4"]`);
+    if (radio) radio.checked = true;
+  } else {
+    // default to P1
+    const radio = document.querySelector(`input[name="minifanPort"][value="P1"]`);
+    if (radio) radio.checked = true;
+  }
+  
+  // Power state (from STATE field)
+  const state = block.getFieldValue('STATE') || 'stop';
+  if (state === 'stop') {
+    document.querySelector(`input[name="minifanState"][value="OFF"]`).checked = true;
+  } else {
+    document.querySelector(`input[name="minifanState"][value="ON"]`).checked = true;
+  }
+
+  updateMinifanPortUI();
+  updateMinifanPowerUI();
+  updateMinifanSliderColor(document.getElementById('minifanSpeed'));
+
+  document.getElementById('minifanSelectionModal').style.display = 'flex';
+  setTimeout(() => { initMinifan3D(); }, 50);
+}
+
+function updateMinifanSliderColor(slider) {
+  if (!slider) return;
+  const val = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+  slider.style.background = `linear-gradient(to right, #FF9800 ${val}%, #ddd ${val}%)`;
+}
+
+function closeMinifanModal() {
+  document.getElementById('minifanSelectionModal').style.display = 'none';
+  destroyMinifan3D();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 3D Minifan Simulation (Three.js r128)
+// ══════════════════════════════════════════════════════════════
+let minifan3D = { scene: null, camera: null, renderer: null, propGroup: null, targetRPM: 0, currentRPM: 0, animId: null, initialized: false };
+
+function initMinifan3D() {
+  if (minifan3D.initialized) return;
+  const canvas = document.getElementById('minifan3DCanvas');
+  if (!canvas || typeof THREE === 'undefined') return;
+
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  canvas.width = W * 2; canvas.height = H * 2;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xE8F0FE);
+  scene.fog = new THREE.Fog(0xE8F0FE, 8, 18);
+
+  const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+  camera.position.set(3, 1.5, 4);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(2);
+  renderer.shadowMap.enabled = true;
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dirLight.position.set(3, 5, 4);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
+  // Minifan base/motor body
+  const baseGroup = new THREE.Group();
+  const motorGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.8, 32);
+  const motorMat = new THREE.MeshStandardMaterial({ color: 0x4285F4, metalness: 0.3, roughness: 0.5 });
+  const motor = new THREE.Mesh(motorGeo, motorMat);
+  motor.rotation.x = Math.PI / 2;
+  motor.castShadow = true;
+  baseGroup.add(motor);
+  scene.add(baseGroup);
+
+  // Propeller group
+  const propGroup = new THREE.Group();
+  
+  // Hub
+  const hubGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 16);
+  const hubMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.8, roughness: 0.2 });
+  const hub = new THREE.Mesh(hubGeo, hubMat);
+  hub.rotation.x = Math.PI / 2;
+  hub.position.z = 0.45;
+  propGroup.add(hub);
+
+  // Blades
+  const bladeGeo = new THREE.BoxGeometry(1.4, 0.25, 0.02);
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0xFBBC05, transparent: true, opacity: 0.9 });
+  
+  for (let i = 0; i < 3; i++) {
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.z = 0.45;
+    blade.rotation.z = (i * Math.PI * 2) / 3;
+    // slight pitch
+    blade.rotation.x = 0.2;
+    propGroup.add(blade);
+  }
+  
+  scene.add(propGroup);
+
+  // Orbit drag
+  let isDrag = false, prevM = { x: 0, y: 0 };
+  let camTheta = 0.7, camPhi = 0.4, camDist = 5;
+  function updateCam() {
+    camera.position.x = camDist * Math.sin(camPhi) * Math.cos(camTheta);
+    camera.position.y = camDist * Math.cos(camPhi);
+    camera.position.z = camDist * Math.sin(camPhi) * Math.sin(camTheta);
+    camera.lookAt(0, 0, 0);
+  }
+  canvas.addEventListener('pointerdown', (e) => { isDrag = true; prevM = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', (e) => { if (!isDrag) return; camTheta += (e.clientX - prevM.x) * 0.01; camPhi = Math.max(0.1, Math.min(1.4, camPhi + (e.clientY - prevM.y) * 0.01)); prevM = { x: e.clientX, y: e.clientY }; updateCam(); });
+  canvas.addEventListener('pointerup', () => { isDrag = false; });
+  canvas.addEventListener('pointerleave', () => { isDrag = false; });
+
+  minifan3D.scene = scene; minifan3D.camera = camera; minifan3D.renderer = renderer;
+  minifan3D.propGroup = propGroup; minifan3D.initialized = true;
+  
+  // initialize speed
+  updateMinifanPowerUI(); // to sync state
+
+  animateMinifan3D();
+}
+
+function updateMinifan3DSpeed(isOn, speedVal) {
+  if (isOn) {
+    minifan3D.targetRPM = (speedVal / 10) * 15;
+  } else {
+    minifan3D.targetRPM = 0;
+  }
+}
+
+function animateMinifan3D() {
+  if (!minifan3D.initialized) return;
+  minifan3D.animId = requestAnimationFrame(animateMinifan3D);
+  minifan3D.currentRPM += (minifan3D.targetRPM - minifan3D.currentRPM) * 0.05;
+  if (minifan3D.propGroup) minifan3D.propGroup.rotation.z -= minifan3D.currentRPM * 0.05;
+  minifan3D.renderer.render(minifan3D.scene, minifan3D.camera);
+}
+
+function destroyMinifan3D() {
+  if (minifan3D.animId) cancelAnimationFrame(minifan3D.animId);
+  if (minifan3D.renderer) minifan3D.renderer.dispose();
+  minifan3D = { scene: null, camera: null, renderer: null, propGroup: null, targetRPM: 0, currentRPM: 0, animId: null, initialized: false };
+}
+
+function saveMinifanSelection() {
+  if (!currentMinifanBlock) { closeMinifanModal(); return; }
+  
+  const selectedPort = document.querySelector('input[name="minifanPort"]:checked');
+  if (selectedPort) {
+    const val = selectedPort.value;
+    let ports = '';
+    if (val === 'P1') ports = 'E11,E12';
+    else if (val === 'P2') ports = 'B9,B8';
+    else if (val === 'P3') ports = 'E13,B15';
+    else if (val === 'P4') ports = 'D15,E14';
+    currentMinifanBlock.setFieldValue(ports, 'PORTS');
+  }
+
+  const powerElem = document.querySelector('input[name="minifanState"]:checked');
+  if (powerElem) {
+    const power = powerElem.value;
+    // If ON, we default to 'forward' for now as that's what the block generator expects. 
+    // If OFF, 'stop'.
+    currentMinifanBlock.setFieldValue(power === 'ON' ? 'forward' : 'stop', 'STATE');
+  }
+  
+  closeMinifanModal();
+}
+
+function updateMinifanPortUI() {
+  const radios = document.querySelectorAll('input[name="minifanPort"]');
+  radios.forEach(r => {
+    const box = r.nextElementSibling;
+    const check = box.querySelector('.mf-port-check');
+    if (r.checked) {
+      box.classList.add('selected');
+      if (check) check.classList.add('selected');
+    } else {
+      box.classList.remove('selected');
+      if (check) check.classList.remove('selected');
+    }
+  });
+}
+
+function updateMinifanPowerUI() {
+  const radios = document.querySelectorAll('input[name="minifanState"]');
+  let isOn = false;
+  radios.forEach(r => {
+    const box = r.nextElementSibling;
+    if (r.checked) {
+      box.classList.add('selected');
+      if (r.value === 'ON') isOn = true;
+    } else {
+      box.classList.remove('selected');
+    }
+  });
+  
+  if (typeof updateMinifan3DSpeed === 'function') {
+    const speedEl = document.getElementById('minifanSpeed');
+    const speed = speedEl ? parseInt(speedEl.value) || 0 : 0;
+    updateMinifan3DSpeed(isOn, speed);
+  }
 }
 
 // ── Speedometer ──
@@ -3588,7 +3805,7 @@ function defineBlocks() {
     { type: "relay", message0: "Relay %1 %2 Value %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["0", "0"], ["1", "1"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "digital_style"] },
     { type: "loop_end", message0: "End the Loop %1", args0: [{ type: "field_input", name: "NAME", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["temp_style", "port_image_click"] },
     { type: "buzzer", message0: "buzzer %1 %2 %3 %4 %5", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "VAL1" }, { type: "field_number", name: "VAL2" }, { type: "field_number", name: "VAL3" }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "digital_style"] },
-    { type: "minifan", message0: "Mini fan %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "digital_style"] },
+    { type: "minifan", message0: "Mini fan %1 %2 %3", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_dropdown", name: "STATE", options: [["forward", "forward"], ["backward", "backward"], ["stop", "stop"]] }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["minifan_image_click", "digital_style"] },
     {
       type: "rgb_component",
       message0: "rgb_component %1 %2 %3 %4 %5",
@@ -4324,6 +4541,10 @@ function defineBlocks() {
   Blockly.Extensions.register('motor_image_click2', function () {
     const f = this.getField('IMG'); if (!f) return;
     f.setOnClickHandler(() => openMotorSelectionModal(this));
+  });
+  Blockly.Extensions.register('minifan_image_click', function () {
+    const f = this.getField('IMG'); if (!f) return;
+    f.setOnClickHandler(() => openMinifanSelectionModal(this));
   });
   Blockly.Extensions.register('servo_image_click', function () {
     const f = this.getField('IMG'); if (!f) return;
@@ -5772,7 +5993,7 @@ async function start() {
   const ok = await waitForBlockly();
   if (!ok) { console.error('Blockly/Python failed to load'); return; }
 
-  if (window.toolboxConfig && !defaultToolboxConfig) {
+  if (window.toolboxConfig) {
     defaultToolboxConfig = JSON.parse(JSON.stringify(window.toolboxConfig));
   }
 
@@ -6714,7 +6935,14 @@ async function start() {
 
   // Restore any previously-picked boards (if any) so their categories
   // survive reloads. Falls back to the old singular key for migration.
-
+  try {
+    var _savedBoards = JSON.parse(localStorage.getItem('blockly_selected_boards') || 'null');
+    if (!_savedBoards) {
+      var _legacyBoard = localStorage.getItem('blockly_selected_board');
+      _savedBoards = _legacyBoard ? [_legacyBoard] : [];
+    }
+    _savedBoards.forEach(function (b) { setSelectedBoard(b); });
+  } catch (e) { }
 
   // ══════════════════════════════════════════════════════════════════════
   // BLOCKLY v12 DYNAMIC TOOLBOX FEATURES
@@ -8955,13 +9183,6 @@ async function start() {
         counter++;
       }
 
-      // Clear any global board selections so the new project starts completely clean
-      try {
-        localStorage.removeItem('blockly_selected_boards');
-        localStorage.removeItem('blockly_selected_board');
-        window._selectedBoards = {};
-      } catch (e) {}
-
       workspace.clear();
       resetToolboxAndAIClasses();
       document.getElementById('projectNameInput').value = newName;
@@ -9045,13 +9266,6 @@ async function start() {
     switchToProject: (name) => {
       // Auto-save current before switching
       ProjectManager.autoSave();
-
-      // Clear any global board selections so the project we are switching to isn't tainted
-      try {
-        localStorage.removeItem('blockly_selected_boards');
-        localStorage.removeItem('blockly_selected_board');
-        window._selectedBoards = {};
-      } catch (e) {}
 
       const xml = StorageLayer.loadLocal(name);
       if (xml) {
@@ -9176,9 +9390,6 @@ async function start() {
           // v12 JSON format — new serialization API
           const parsed = JSON.parse(trimmed);
           if (parsed && parsed.workspaceState) {
-            if (parsed.selectedBoards && typeof window.setSelectedBoard === 'function') {
-              Object.keys(parsed.selectedBoards).forEach(b => window.setSelectedBoard(b));
-            }
             if (parsed.aiTrainedClasses) {
               applyAIClasses(parsed.aiTrainedClasses, parsed.aiTrainedBoard);
               try { sessionStorage.setItem('curio_ai_trained', JSON.stringify(parsed.aiTrainedClasses)); } catch (e) { }

@@ -1,23 +1,39 @@
 """
 Proper HTML splitter using a state-machine parser.
 Correctly handles <style>/<script> text inside JS strings/comments.
-- All <style> blocks -> css/main.css
-- Large inline <script> blocks -> js/block_N.js
+- All <style> blocks -> css/<css_name>.css
+- Large inline <script> blocks -> js/<js_prefix>_NN.js
 - Tiny critical inline scripts stay inline (<= 40 lines)
 - base64 SVG in CSS -> assets/img/img_NNN.svg
+
+Usage:
+    python split_html.py                                   # splits index.html (original behavior)
+    python split_html.py train.html --css-name train --js-prefix train_block
 """
 
-import os, re, base64, shutil
+import os, re, base64, shutil, argparse, sys
 
-BASE     = os.path.dirname(os.path.abspath(__file__))
-HTML_IN  = os.path.join(BASE, "index.html")
-HTML_BAK = os.path.join(BASE, "index.html.bak")
+BASE = os.path.dirname(os.path.abspath(__file__))
+
+parser = argparse.ArgumentParser()
+parser.add_argument("target", nargs="?", default="index.html", help="HTML file to split (relative to this folder)")
+parser.add_argument("--css-name", default="main", help="Output css/<name>.css (default: main)")
+parser.add_argument("--js-prefix", default="block", help="Output js/<prefix>_NN.js (default: block)")
+parser.add_argument("--inline-limit", type=int, default=40, help="Scripts with <= this many lines stay inline")
+args = parser.parse_args()
+
+HTML_IN  = os.path.join(BASE, args.target)
+HTML_BAK = HTML_IN + ".bak"
 CSS_DIR  = os.path.join(BASE, "css")
 JS_DIR   = os.path.join(BASE, "js")
 IMG_DIR  = os.path.join(BASE, "assets", "img")
 
+if not os.path.isfile(HTML_IN):
+    print(f"File not found: {HTML_IN}")
+    sys.exit(1)
+
 shutil.copy2(HTML_IN, HTML_BAK)
-print("Backup saved.")
+print(f"Backup saved -> {os.path.basename(HTML_BAK)}")
 
 with open(HTML_IN, "r", encoding="utf-8", errors="ignore") as f:
     lines = f.readlines()
@@ -30,7 +46,7 @@ os.makedirs(IMG_DIR, exist_ok=True)
 # State-machine: walk lines tracking whether we are inside
 # a <script> or <style> tag, to avoid regex mis-matches.
 # ============================================================
-INLINE_LINE_LIMIT = 40
+INLINE_LINE_LIMIT = args.inline_limit
 
 css_chunks  = []
 css_pending = []   # lines of the current <style> block
@@ -91,7 +107,7 @@ while i < len(lines):
                 else:
                     js_blocks.append((inner.split('\n'), attrs))
                     n = len(js_blocks)
-                    inline_out.append(f'  <script{attrs} src="js/block_{n:02d}.js"></script>\n')
+                    inline_out.append(f'  <script{attrs} src="js/{args.js_prefix}_{n:02d}.js"></script>\n')
                 in_script = False
                 i += 1
                 continue
@@ -132,7 +148,7 @@ while i < len(lines):
             else:
                 js_blocks.append((content, js_attrs))
                 n = len(js_blocks)
-                inline_out.append(f'  <script{js_attrs} src="js/block_{n:02d}.js"></script>\n')
+                inline_out.append(f'  <script{js_attrs} src="js/{args.js_prefix}_{n:02d}.js"></script>\n')
             js_pending = []
             in_script  = False
         else:
@@ -146,7 +162,7 @@ while i < len(lines):
 # Write CSS
 # ============================================================
 if css_chunks:
-    css_path = os.path.join(CSS_DIR, "main.css")
+    css_path = os.path.join(CSS_DIR, f"{args.css_name}.css")
 
     # extract base64 SVG from CSS before writing
     img_counter = [0]
@@ -173,7 +189,7 @@ if css_chunks:
         f.write(css_combined)
 
     css_kb = os.path.getsize(css_path) // 1024
-    print(f"CSS  -> css/main.css  ({len(css_chunks)} blocks, {css_kb} KB)")
+    print(f"CSS  -> css/{args.css_name}.css  ({len(css_chunks)} blocks, {css_kb} KB)")
     if img_counter[0]:
         print(f"SVG  -> {img_counter[0]} SVG images extracted to assets/img/")
 
@@ -181,7 +197,7 @@ if css_chunks:
 # Write JS blocks
 # ============================================================
 for n, (content, attrs) in enumerate(js_blocks, 1):
-    fname  = f"block_{n:02d}.js"
+    fname  = f"{args.js_prefix}_{n:02d}.js"
     fpath  = os.path.join(JS_DIR, fname)
     nlines = content.count('\n')
     with open(fpath, "w", encoding="utf-8") as f:
@@ -194,7 +210,7 @@ for n, (content, attrs) in enumerate(js_blocks, 1):
 # ============================================================
 html_out = "".join(inline_out)
 if css_chunks:
-    link_tag = '  <link rel="stylesheet" href="css/main.css" />\n'
+    link_tag = f'  <link rel="stylesheet" href="css/{args.css_name}.css" />\n'
     html_out = html_out.replace("</head>", link_tag + "</head>", 1)
 
 with open(HTML_IN, "w", encoding="utf-8") as f:
@@ -205,4 +221,5 @@ new_kb  = os.path.getsize(HTML_IN)  // 1024
 print(f"\nDone!")
 print(f"  Before : {orig_kb:,} KB")
 print(f"  After  : {new_kb:,} KB")
-print(f"  Saved  : {orig_kb - new_kb:,} KB  ({100*(orig_kb-new_kb)//orig_kb}% smaller)")
+if orig_kb:
+    print(f"  Saved  : {orig_kb - new_kb:,} KB  ({100*(orig_kb-new_kb)//orig_kb}% smaller)")

@@ -76,10 +76,10 @@
   <script src="offline_libs/blockly/blocks_compressed.js" defer></script>
   <script src="offline_libs/blockly/python_compressed.js" defer></script>
   <script src="offline_libs/blockly/msg/en.js" defer></script>
-  <!-- Blockly.Python alias is set at top of block_02.js after deferred scripts load -->
+  <!-- Blockly.Python alias is set at top of js/main/terminal-state.js after deferred scripts load -->
 
 
-  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/main.css?v=7" />
 </head>
 
 <body>
@@ -645,7 +645,7 @@
        Dynamic categories: ⭐ RECENT_BLOCKS  ❤️ FAVORITE_BLOCKS  SEARCH_CATEGORY
        Every category has a unique id so getToolboxItemById() works.
        ═══════════════════════════════════════════════════════════════ -->
-  <script src="js/block_01.js" defer></script>
+  <script src="js/main/toolbox-config.js?v=7" defer></script>
 
   <!-- Toolbox XML kept as data source for search index -->
   <!-- Toolbox XML kept as data source for search index -->
@@ -1316,6 +1316,715 @@
     </div>
   </div>
 
+
+
+  <!-- Minifan Modal -->
+  <div id="minifanSelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <img src="./icons/mini_fan_icon.svg" class="mf-header-icon" alt="icon">
+          <div>
+            <h2 class="mf-header-title">DC Fan</h2>
+            <p class="mf-header-subtitle">Choose where your sensor is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">PWM</div>
+          <button onclick="closeMinifanModal()" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="minifan3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Sensor Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container" id="minifanPins">
+              <label class="mf-pin-label">
+                <input type="radio" name="minifanPort" value="P1" style="display:none;" checked
+                  onchange="updateMinifanPortUI()">
+                <div class="mf-port-box selected">
+                  P1
+                  <div class="mf-port-check selected">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+              </label>
+              <label class="mf-pin-label">
+                <input type="radio" name="minifanPort" value="P2" style="display:none;"
+                  onchange="updateMinifanPortUI()">
+                <div class="mf-port-box">
+                  P2
+                  <div class="mf-port-check">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+              </label>
+              <label class="mf-pin-label">
+                <input type="radio" name="minifanPort" value="P3" style="display:none;"
+                  onchange="updateMinifanPortUI()">
+                <div class="mf-port-box">
+                  P3
+                  <div class="mf-port-check">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+              </label>
+              <label class="mf-pin-label">
+                <input type="radio" name="minifanPort" value="P4" style="display:none;"
+                  onchange="updateMinifanPortUI()">
+                <div class="mf-port-box">
+                  P4
+                  <div class="mf-port-check">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <img style="width: 15px;" src="./icons/fan_speed.svg" alt="speed_fan">
+                Fan Speed
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-speed-container">
+              <div class="mf-speed-slider-wrap">
+                <input type="range" id="minifanSpeed" min="0" max="10" value="7" class="mf-speed-slider"
+                  oninput="document.getElementById('minifanSpeedVal').innerText=this.value; updateMinifanPowerUI(); updateMinifanSliderColor(this);">
+                <div class="mf-speed-labels">
+                  <span>Slow</span><span>Fast</span>
+                </div>
+              </div>
+              <div class="mf-speed-value-wrap">
+                <span id="minifanSpeedVal">7</span> <span class="mf-speed-max">/ 10</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 3</span>
+            </div>
+            <div class="mf-power-container" id="minifanPower">
+              <label class="mf-power-label">
+                <input type="radio" name="minifanState" value="ON" style="display:none;" checked
+                  onchange="updateMinifanPowerUI()">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="minifanState" value="OFF" style="display:none;"
+                  onchange="updateMinifanPowerUI()">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeMinifanModal()" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveMinifanSelection()" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IR Sensor Modal (sensor popup template — see Minifan Modal above) -->
+  <div id="irSelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <div class="mf-header-icon" style="background:#FFF2DB; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.9 19.1a10 10 0 0 1 0-14.2"></path>
+              <path d="M7.8 16.2a6 6 0 0 1 0-8.4"></path>
+              <circle cx="12" cy="12" r="2"></circle>
+              <path d="M16.2 7.8a6 6 0 0 1 0 8.4"></path>
+              <path d="M19.1 4.9a10 10 0 0 1 0 14.2"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="mf-header-title">IR Sensor</h2>
+            <p class="mf-header-subtitle">Choose where your sensor is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">DIGITAL</div>
+          <button onclick="closeSensorModal('ir')" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="ir3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <span id="irLoadMsg" class="mf-3d-load-msg" style="display:none;"></span>
+          <img id="irImage" class="mf-3d-static-image" style="display:none;" alt="">
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Sensor Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container wrap" id="irPins"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-power-container" id="irPower">
+              <label class="mf-power-label">
+                <input type="radio" name="irState" value="ON" style="display:none;" checked
+                  onchange="updateSensorPowerUI('ir')">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="irState" value="OFF" style="display:none;"
+                  onchange="updateSensorPowerUI('ir')">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeSensorModal('ir')" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveSensorSelection('ir')" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relay Modal (sensor popup template — see Minifan Modal above) -->
+  <div id="relaySelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <div class="mf-header-icon" style="background:#FB913B; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff" stroke="#FB913B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="5" width="22" height="14" rx="7" ry="7"></rect>
+              <circle cx="16" cy="12" r="3"></circle>
+            </svg>
+          </div>
+          <div>
+            <h2 class="mf-header-title">Relay</h2>
+            <p class="mf-header-subtitle">Choose where your relay is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">Digital</div>
+          <button onclick="closeSensorModal('relay')" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="relay3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <span id="relayLoadMsg" class="mf-3d-load-msg" style="display:none;"></span>
+          <img id="relayImage" class="mf-3d-static-image" style="display:none;" alt="">
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Sensor Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container wrap" id="relayPins"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-power-container" id="relayPower">
+              <label class="mf-power-label">
+                <input type="radio" name="relayState" value="ON" style="display:none;" checked
+                  onchange="updateSensorPowerUI('relay')">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="relayState" value="OFF" style="display:none;"
+                  onchange="updateSensorPowerUI('relay')">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeSensorModal('relay')" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveSensorSelection('relay')" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Cell Modal (sensor popup template — see Minifan Modal above) -->
+  <div id="loadcellSelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <div class="mf-header-icon" style="background:#FB913B; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff" stroke="#FB913B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a10 10 0 1 0 10 10"></path>
+              <path d="M12 12L18 6"></path>
+              <path d="M12 12h.01"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="mf-header-title">Load Cell</h2>
+            <p class="mf-header-subtitle">Choose where your sensor is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">Digital</div>
+          <button onclick="closeSensorModal('loadcell')" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="loadcell3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <span id="loadcellLoadMsg" class="mf-3d-load-msg" style="display:none;"></span>
+          <img id="loadcellImage" class="mf-3d-static-image" style="display:none;" alt="">
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Sensor Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container wrap" id="loadcellPins"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-power-container" id="loadcellPower">
+              <label class="mf-power-label">
+                <input type="radio" name="loadcellState" value="ON" style="display:none;" checked
+                  onchange="updateSensorPowerUI('loadcell')">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="loadcellState" value="OFF" style="display:none;"
+                  onchange="updateSensorPowerUI('loadcell')">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeSensorModal('loadcell')" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveSensorSelection('loadcell')" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Water Pump Sensor Modal (sensor popup template — see Minifan Modal above) -->
+  <div id="irSelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <div class="mf-header-icon" style="background:#FFF2DB; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.9 19.1a10 10 0 0 1 0-14.2"></path>
+              <path d="M7.8 16.2a6 6 0 0 1 0-8.4"></path>
+              <circle cx="12" cy="12" r="2"></circle>
+              <path d="M16.2 7.8a6 6 0 0 1 0 8.4"></path>
+              <path d="M19.1 4.9a10 10 0 0 1 0 14.2"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="mf-header-title">Water Pump</h2>
+            <p class="mf-header-subtitle">Choose where your sensor is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">DIGITAL</div>
+          <button onclick="closeSensorModal('ir')" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="ir3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <span id="irLoadMsg" class="mf-3d-load-msg" style="display:none;"></span>
+          <img id="irImage" class="mf-3d-static-image" style="display:none;" alt="">
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Sensor Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container wrap" id="irPins"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-power-container" id="irPower">
+              <label class="mf-power-label">
+                <input type="radio" name="irState" value="ON" style="display:none;" checked
+                  onchange="updateSensorPowerUI('ir')">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="irState" value="OFF" style="display:none;"
+                  onchange="updateSensorPowerUI('ir')">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeSensorModal('ir')" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveSensorSelection('ir')" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Water Pump Modal (sensor popup template — see Minifan/IR/Relay/Load Cell modals above) -->
+  <div id="waterpumpSelectionModal" class="mf-modal-overlay">
+    <div class="mf-modal-container">
+      <!-- Header -->
+      <div class="mf-header">
+        <div class="mf-header-left">
+          <div class="mf-header-icon" style="background:#E0F2FE; display:flex; align-items:center; justify-content:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.69s5.66 5.68 8.49 9.06C22.4 14.51 22 17.66 20 19.66a8 8 0 0 1-16 0c-2-2-2.4-5.15-.49-7.91C6.34 8.37 12 2.69 12 2.69z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="mf-header-title">Water Pump</h2>
+            <p class="mf-header-subtitle">Choose where your pump is connected</p>
+          </div>
+        </div>
+        <div class="mf-header-right">
+          <div class="mf-badge">PUMP</div>
+          <button onclick="closeSensorModal('waterpump')" class="mf-close-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="mf-body">
+        <!-- Left Panel -->
+        <div class="mf-left-panel" style="position: relative; overflow: hidden; padding: 0;">
+          <canvas id="waterpump3DCanvas" style="width:100%; height:100%; position:absolute; top:0; left:0;"></canvas>
+          <span id="waterpumpLoadMsg" class="mf-3d-load-msg" style="display:none;"></span>
+          <img id="waterpumpImage" class="mf-3d-static-image" style="display:none;" alt="">
+          <div class="mf-3d-hint"
+            style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;">
+            DRAG TO ROTATE &bull; SCROLL TO ZOOM
+          </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="mf-right-panel">
+          <!-- Step 1 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Where Is Your Pump Plugged In?
+              </h3>
+              <span class="mf-step-badge">STEP 1</span>
+            </div>
+            <div class="mf-pins-container wrap" id="waterpumpPins"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="mf-step-header">
+              <h3 class="mf-step-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                  <line x1="12" y1="2" x2="12" y2="12" />
+                </svg>
+                Turn On Power
+              </h3>
+              <span class="mf-step-badge">STEP 2</span>
+            </div>
+            <div class="mf-power-container" id="waterpumpPower">
+              <label class="mf-power-label">
+                <input type="radio" name="waterpumpState" value="ON" style="display:none;" checked
+                  onchange="updateSensorPowerUI('waterpump')">
+                <div class="mf-pwr-box on selected">
+                  <img style="width: 15px;" src="./icons/power_on_icon.svg" alt="power on">
+                  ON
+                </div>
+              </label>
+              <label class="mf-power-label">
+                <input type="radio" name="waterpumpState" value="OFF" style="display:none;"
+                  onchange="updateSensorPowerUI('waterpump')">
+                <div class="mf-pwr-box off">
+                  <img style="width: 15px;" src="./icons/power_off_icon.svg" alt="power off">
+                  OFF
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mf-footer">
+            <button onclick="closeSensorModal('waterpump')" class="mf-btn-cancel">CANCEL</button>
+            <button onclick="saveSensorSelection('waterpump')" class="mf-btn-done">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Unified Motor Modal -->
   <div id="unifiedMotorModal"
     style="display:none;position:fixed;inset:0;z-index:4200;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;">
@@ -1776,7 +2485,25 @@
     </div>
   </div>
 
-  <script src="js/block_02.js?v=2" defer></script>
+  <script src="js/main/terminal-state.js?v=7" defer></script>
+  <script src="js/main/bluetooth.js?v=7" defer></script>
+  <script src="js/main/usb-serial-and-transport.js?v=7" defer></script>
+  <script src="js/main/modals.js?v=7" defer></script>
+  <script src="js/main/block-styling.js?v=7" defer></script>
+  <script src="js/main/custom-fields.js?v=7" defer></script>
+  <script src="js/main/block-definitions.js?v=7" defer></script>
+  <script src="js/main/python-generators.js?v=7" defer></script>
+  <script src="js/main/button-lock-mutex.js?v=7" defer></script>
+  <script src="js/main/training-3d-misc.js?v=7" defer></script>
+  <script src="js/main/simulation-modal.js?v=7" defer></script>
+  <script src="js/main/model-viewer-3d.js?v=7" defer></script>
+  <script src="js/main/app-init.js?v=7" defer></script>
+  <script src="js/main/live-mode-engine.js?v=7" defer></script>
+  <script src="js/main/panel-toggle-and-boot.js?v=7" defer></script>
+  <script src="js/main/cross-page-integration-1.js?v=7" defer></script>
+  <script src="js/main/bike-3d-model.js?v=7" defer></script>
+  <script src="js/main/cross-page-integration-2.js?v=7" defer></script>
+  <script src="js/main/port-label-field-patch.js?v=7" defer></script>
   <div id="liveModeToast" class="live-toast"></div>
 
   <!-- Hide Scrollbar CSS -->
@@ -1791,7 +2518,7 @@
 
 
   <!-- Flyout Alignment Patch -->
-  <script src="js/block_03.js?v=2" defer></script>
+  <script src="js/main/flyout-patch.js?v=7" defer></script>
 
 
   <!-- FORCE HIDE SVG SCROLLBAR -->
@@ -1802,9 +2529,9 @@
   <!-- ══ DEVICES PANEL CSS ══ -->
 
   <!-- ══ DEVICES PANEL JS ══ -->
-  <script src="js/block_04.js" defer></script>
+  <script src="js/main/devices-panel.js?v=7" defer></script>
 
-  <script src="js/block_05.js?v=6" defer></script>
+  <script src="js/main/code-panel-tabs.js?v=7" defer></script>
 
 </body>
 

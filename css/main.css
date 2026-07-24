@@ -8368,9 +8368,11 @@
       .search-empty-img {
         width: 90px !important;
       }
+
       .search-empty-title {
         font-size: 14px !important;
       }
+
       .search-empty-sub {
         font-size: 11px !important;
       }
@@ -8574,9 +8576,11 @@
     html.expo-wv-mobile .search-empty-img {
       width: 90px !important;
     }
+
     html.expo-wv-mobile .search-empty-title {
       font-size: 14px !important;
     }
+
     html.expo-wv-mobile .search-empty-sub {
       font-size: 11px !important;
     }
@@ -8770,4 +8774,433 @@
     html.expo-wv-mobile .adm-or-row {
       margin: 10px 0 !important;
       font-size: 10px !important;
+    }
+
+    /* Minifan Modal Styles */
+    .mf-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .mf-modal-overlay.active {
+      display: flex;
+    }
+
+    .mf-modal-container {
+      --modal-accent: #FF9800;
+      background: #fff;
+      width: 800px;
+      max-width: 90%;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mf-header {
+      background: #FFF3E0;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mf-header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mf-header-icon {
+      border-radius: 12px;
+      object-fit: contain;
+      width: 48px;
+      height: 48px;
+      /* background: #FB913B;
+      color: #FB913B; */
+    }
+
+    .mf-header-title {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+
+    .mf-header-subtitle {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .mf-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mf-badge {
+      border: 1px solid #FB913B;
+      color: #FB913B;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      background: #fff;
+    }
+
+    .mf-close-btn {
+      background: #fff;
+      border: 1px solid #ccc;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #666;
+    }
+
+    .mf-body {
+      display: flex;
+      padding: 24px;
+      gap: 32px;
+    }
+
+    .mf-left-panel {
+      flex: 1;
+      background: #E8F0FE;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      position: relative;
+      min-height: 300px;
+    }
+
+    .mf-3d-view {
+      background: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .mf-3d-text {
+      font-size: 8px;
+      color: #1A73E8;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    .mf-3d-hint {
+      align-self: center;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Shown over the canvas while a sensor's .glb is loading, or if it
+       fails to load (see initSensorBoard3D/loadSensorGlb in modals.js) */
+    .mf-3d-load-msg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      background: rgba(0, 0, 0, 0.65);
+      color: white;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    /* Flat PNG/JPG left-panel view, used instead of the 3D canvas when a
+       sensor's config sets `image` instead of `glbModel` (see
+       setupSensorLeftPanel in modals.js). */
+    .mf-3d-static-image {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      object-fit: contain;
+    }
+
+    .mf-right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .mf-step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .mf-step-title {
+      margin: 0;
+      font-size: 15px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mf-step-badge {
+      background: #FB913B;
+      color: white;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    .mf-pins-container {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Sensor variants with more than 4 pin choices wrap instead of forcing one row */
+    .mf-pins-container.wrap {
+      flex-wrap: wrap;
+    }
+
+    .mf-pins-container.wrap .mf-pin-label {
+      flex: 0 1 72px;
+    }
+
+    .mf-pin-label {
+      flex: 1;
+      position: relative;
+      cursor: pointer;
+      display: block;
+    }
+
+    .mf-port-box {
+      border: 1px solid #d1d5db;
+      color: #4b5563;
+      border-radius: 8px;
+      border-bottom: 3px solid #d1d5db;
+      padding: 12px;
+      text-align: center;
+      font-weight: bold;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .mf-port-box.selected {
+      
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+      background: #FB913B;
+    }
+
+    .mf-port-check {
+      display: none;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #FB913B;
+      color: white;
+      width: 24px;
+      height: 24px;
+      justify-content: center;
+      align-items: center;
+      border-bottom-left-radius: 8px;
+    }
+
+    .mf-port-check.selected {
+      display: flex;
+    }
+
+    .mf-speed-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mf-speed-slider-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .mf-speed-slider {
+      width: 100%;
+      accent-color: var(--modal-accent, #FF9800);
+      height: 6px;
+      background: #ddd;
+      border-radius: 3px;
+      outline: none;
+      appearance: none;
+    }
+
+    .mf-speed-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid var(--modal-accent, #FF9800);
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .mf-speed-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      color: #999;
+      font-size: 12px;
+    }
+
+    .mf-speed-value-wrap {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--modal-accent, #FF9800);
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .mf-speed-max {
+      font-size: 16px;
+      color: #999;
+      font-weight: normal;
+    }
+
+    .mf-power-container {
+      display: flex;
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .mf-power-label {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .mf-pwr-box {
+      color: #666;
+      padding: 12px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .mf-pwr-box.on.selected {
+      background: #FB913B;
+      color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+    }
+
+    .mf-pwr-box.off.selected {
+      background: #FB913B;
+      color: #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+    }
+
+    .mf-footer {
+      border-top: 1px dashed #ddd;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+    }
+
+    .mf-btn-cancel {
+      background: none;
+      border: none;
+      color: #666;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    .mf-btn-done {
+      background: #4285F4;
+      color: white;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 24px;
+      border-bottom: 3px solid #535353;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #minifanSpeed::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #FF9800;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── Sensor popup template — same layout/classes as the Minifan modal,
+       reused via the .mf-* classes above. Each sensor only overrides its
+       --modal-accent (badges/step-badges) and left-panel background. ── */
+    #irSelectionModal .mf-modal-container {
+      --modal-accent: #FB913B;
+    }
+    #irSelectionModal .mf-left-panel {
+      background: #DDEBFF;
+    }
+
+    #relaySelectionModal .mf-modal-container {
+      --modal-accent: #154360;
+    }
+    #relaySelectionModal .mf-left-panel {
+      background: #DCE7F0;
+    }
+
+    #loadcellSelectionModal .mf-modal-container {
+      --modal-accent: #6B7280;
+    }
+    #loadcellSelectionModal .mf-left-panel {
+      background: #E5E7EB;
+    }
+
+    #waterpumpSelectionModal .mf-modal-container {
+      --modal-accent: #0EA5E9;
+    }
+    #waterpumpSelectionModal .mf-left-panel {
+      background: #E0F2FE;
     }
